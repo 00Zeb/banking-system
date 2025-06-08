@@ -23,7 +23,8 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>BankingApp</mainClass>
+                            <!-- Use the fully qualified name of the main class -->
+                            <mainClass>com.example.banking.BankingApp</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
@@ -40,8 +41,9 @@
                         <configuration>
                             <archive>
                                 <manifest>
+                                    <!-- Use the fully qualified name of the main class -->
                                     <mainClass>
-                                        BankingApp
+                                        com.example.banking.BankingApp
                                     </mainClass>
                                 </manifest>
                             </archive>

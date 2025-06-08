@@ -1,3 +1,5 @@
+package com.example.banking;
+
 /**
  * Represents a single transaction with a type and an amount.
  */

@@ -1,3 +1,5 @@
+package com.example.banking;
+
 import java.util.Scanner;
 
 /**
