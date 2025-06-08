@@ -13,6 +13,11 @@ public interface UserRepository {
     void saveUser(User user);
     
     /**
+     * Updates an existing user in the repository.
+     */
+    void updateUser(User user);
+    
+    /**
      * Retrieves a user by username.
      */
     User getUserByUsername(String username);
@@ -26,4 +31,9 @@ public interface UserRepository {
      * Deletes a user from the repository.
      */
     boolean deleteUser(String username);
+    
+    /**
+     * Saves all users in the cache.
+     */
+    void saveAllUsers();
 }

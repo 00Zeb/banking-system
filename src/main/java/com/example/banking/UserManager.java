@@ -25,8 +25,11 @@ public class UserManager {
         
         // Load users from repository if available
         if (repository != null) {
-            repository.getAllUsers().forEach(user -> 
-                users.put(user.getUsername(), user));
+            repository.getAllUsers().forEach(user -> {
+                user.setUserManager(this); // Set the user manager reference
+                user.getAccount().setOwner(user); // Set the account owner reference
+                users.put(user.getUsername(), user);
+            });
         } else {
             // Add default users if no repository
             registerUser("admin", "admin123");
@@ -40,6 +43,7 @@ public class UserManager {
         }
         
         User newUser = new User(username, password);
+        newUser.setUserManager(this); // Set the user manager reference
         users.put(username, newUser);
         
         // Save to repository if available
@@ -71,5 +75,25 @@ public class UserManager {
         }
         
         return true;
+    }
+    
+    /**
+     * Updates a user in the repository.
+     * This is called after transactions to ensure they are persisted.
+     */
+    public void updateUser(User user) {
+        if (repository != null && users.containsKey(user.getUsername())) {
+            repository.updateUser(user);
+        }
+    }
+    
+    /**
+     * Saves all users to the repository.
+     * This can be called when the application exits.
+     */
+    public void saveAllUsers() {
+        if (repository != null) {
+            repository.saveAllUsers();
+        }
     }
 }

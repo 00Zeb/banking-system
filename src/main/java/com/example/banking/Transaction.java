@@ -1,16 +1,20 @@
 package com.example.banking;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
  * Represents a banking transaction.
+ * Implements Serializable for persistence.
  */
-public class Transaction {
+public class Transaction implements Serializable {
+    private static final long serialVersionUID = 1L;
+    
     private String type;
     private double amount;
     private LocalDateTime timestamp;
-    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final transient DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
      * Constructor for Transaction.
