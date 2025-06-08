@@ -1,5 +1,6 @@
-package com.example.banking;
+package com.example.banking.domain;
 
+import com.example.banking.user.User;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;

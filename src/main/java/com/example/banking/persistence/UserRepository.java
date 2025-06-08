@@ -1,6 +1,6 @@
 package com.example.banking.persistence;
 
-import com.example.banking.User;
+import com.example.banking.user.User;
 import java.util.List;
 
 /**

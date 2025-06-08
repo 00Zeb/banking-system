@@ -1,5 +1,6 @@
-package com.example.banking;
+package com.example.banking.user;
 
+import com.example.banking.domain.Account;
 import java.io.Serializable;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -64,23 +65,14 @@ public class User implements Serializable {
         }
     }
 
-    /**
-     * Gets the username of this user.
-     */
     public String getUsername() {
         return username;
     }
 
-    /**
-     * Gets the account associated with this user.
-     */
     public Account getAccount() {
         return account;
     }
     
-    /**
-     * Gets the password hash for storage purposes.
-     */
     public String getPasswordHash() {
         return passwordHash;
     }

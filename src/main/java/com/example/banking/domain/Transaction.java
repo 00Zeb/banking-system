@@ -1,4 +1,4 @@
-package com.example.banking;
+package com.example.banking.domain;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;

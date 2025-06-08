@@ -1,8 +1,8 @@
 package com.example.banking.persistence;
 
-import com.example.banking.User;
-import com.example.banking.Transaction;
-import com.example.banking.Account;
+import com.example.banking.user.User;
+import com.example.banking.domain.Transaction;
+import com.example.banking.domain.Account;
 
 import java.io.*;
 import java.util.ArrayList;

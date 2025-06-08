@@ -3,6 +3,7 @@ package com.example.banking;
 import com.example.banking.persistence.FileUserRepository;
 import com.example.banking.persistence.UserRepository;
 import com.example.banking.ui.BankingUI;
+import com.example.banking.user.UserManager;
 
 /**
  * Main class for the banking application.

@@ -1,4 +1,4 @@
-package com.example.banking;
+package com.example.banking.user;
 
 import com.example.banking.persistence.UserRepository;
 import java.util.HashMap;

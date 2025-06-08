@@ -1,8 +1,8 @@
 package com.example.banking.ui;
 
-import com.example.banking.Account;
-import com.example.banking.User;
-import com.example.banking.UserManager;
+import com.example.banking.domain.Account;
+import com.example.banking.user.User;
+import com.example.banking.user.UserManager;
 
 import java.util.Scanner;
 
