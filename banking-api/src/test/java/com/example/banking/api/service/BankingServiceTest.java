@@ -1,38 +1,32 @@
 package com.example.banking.api.service;
 
+import com.example.banking.api.model.BankingTransaction;
+import com.example.banking.api.model.BankingUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.io.File;
-import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 @DisplayName("Banking Service Tests")
 class BankingServiceTest {
 
+    @Mock
+    private BankingProcessService processService;
+
+    @InjectMocks
     private BankingService bankingService;
-
-    @TempDir
-    Path tempDir;
-
-    @BeforeEach
-    void setUp() {
-        // Clean up any existing data files and use temp directory
-        cleanupDataFiles();
-        System.setProperty("user.dir", tempDir.toString());
-        bankingService = new BankingService();
-    }
-
-    private void cleanupDataFiles() {
-        File dataFile = new File("banking_data.ser");
-        if (dataFile.exists()) {
-            dataFile.delete();
-        }
-    }
 
     @Nested
     @DisplayName("User Registration Tests")
@@ -41,24 +35,29 @@ class BankingServiceTest {
         @Test
         @DisplayName("Should register new user successfully")
         void shouldRegisterNewUserSuccessfully() {
+            // Given
+            when(processService.registerUser("newuser", "password123")).thenReturn(true);
+
             // When
             boolean result = bankingService.registerUser("newuser", "password123");
 
             // Then
             assertThat(result).isTrue();
+            verify(processService).registerUser("newuser", "password123");
         }
 
         @Test
         @DisplayName("Should fail to register user with existing username")
         void shouldFailToRegisterUserWithExistingUsername() {
             // Given
-            bankingService.registerUser("existinguser", "password123");
+            when(processService.registerUser("existinguser", "newpassword")).thenReturn(false);
 
             // When
             boolean result = bankingService.registerUser("existinguser", "newpassword");
 
             // Then
             assertThat(result).isFalse();
+            verify(processService).registerUser("existinguser", "newpassword");
         }
     }
 
@@ -70,7 +69,8 @@ class BankingServiceTest {
         @DisplayName("Should authenticate user with correct credentials")
         void shouldAuthenticateUserWithCorrectCredentials() {
             // Given
-            bankingService.registerUser("testuser", "password123");
+            BankingUser mockUser = new BankingUser("testuser", 100.0);
+            when(processService.authenticateUser("testuser", "password123")).thenReturn(mockUser);
 
             // When
             var user = bankingService.authenticateUser("testuser", "password123");
@@ -78,29 +78,35 @@ class BankingServiceTest {
             // Then
             assertThat(user).isNotNull();
             assertThat(user.getUsername()).isEqualTo("testuser");
+            verify(processService).authenticateUser("testuser", "password123");
         }
 
         @Test
         @DisplayName("Should fail authentication with wrong password")
         void shouldFailAuthenticationWithWrongPassword() {
             // Given
-            bankingService.registerUser("testuser", "password123");
+            when(processService.authenticateUser("testuser", "wrongpassword")).thenReturn(null);
 
             // When
             var user = bankingService.authenticateUser("testuser", "wrongpassword");
 
             // Then
             assertThat(user).isNull();
+            verify(processService).authenticateUser("testuser", "wrongpassword");
         }
 
         @Test
         @DisplayName("Should fail authentication with non-existent user")
         void shouldFailAuthenticationWithNonExistentUser() {
+            // Given
+            when(processService.authenticateUser("nonexistent", "password")).thenReturn(null);
+
             // When
             var user = bankingService.authenticateUser("nonexistent", "password");
 
             // Then
             assertThat(user).isNull();
+            verify(processService).authenticateUser("nonexistent", "password");
         }
     }
 

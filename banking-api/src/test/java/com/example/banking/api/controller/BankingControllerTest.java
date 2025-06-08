@@ -4,8 +4,8 @@ import com.example.banking.api.dto.LoginRequest;
 import com.example.banking.api.dto.RegisterRequest;
 import com.example.banking.api.dto.TransactionRequest;
 import com.example.banking.api.service.BankingService;
-import com.example.banking.user.User;
-import com.example.banking.domain.Account;
+import com.example.banking.api.model.BankingUser;
+import com.example.banking.api.model.BankingTransaction;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,14 +36,11 @@ class BankingControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private User mockUser;
-    private Account mockAccount;
+    private BankingUser mockUser;
 
     @BeforeEach
     void setUp() {
-        mockAccount = new Account();
-        mockUser = new User("testuser", "password");
-        // Note: We can't easily mock the User constructor, so we'll work with what we have
+        mockUser = new BankingUser("testuser", 100.0);
     }
 
     @Nested

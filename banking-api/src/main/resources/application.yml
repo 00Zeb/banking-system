@@ -33,6 +33,13 @@ springdoc:
     path: /swagger-ui.html
     operationsSorter: method
 
+# Banking Application Process Configuration
+banking:
+  application:
+    jar-path: "../banking-application/target/banking-application-1.0-SNAPSHOT.jar"
+    process-timeout: 30000  # 30 seconds timeout for process operations
+    java-command: "java"
+
 # Logging configuration
 logging:
   level:

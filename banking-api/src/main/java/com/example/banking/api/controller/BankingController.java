@@ -1,9 +1,9 @@
 package com.example.banking.api.controller;
 
 import com.example.banking.api.dto.*;
+import com.example.banking.api.model.BankingTransaction;
+import com.example.banking.api.model.BankingUser;
 import com.example.banking.api.service.BankingService;
-import com.example.banking.domain.Transaction;
-import com.example.banking.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -59,10 +59,10 @@ public class BankingController {
         @ApiResponse(responseCode = "401", description = "Invalid credentials")
     })
     public ResponseEntity<UserResponse> login(@Valid @RequestBody LoginRequest request) {
-        User user = bankingService.authenticateUser(request.getUsername(), request.getPassword());
-        
+        BankingUser user = bankingService.authenticateUser(request.getUsername(), request.getPassword());
+
         if (user != null) {
-            UserResponse response = new UserResponse(user.getUsername(), user.getAccount().getBalance());
+            UserResponse response = new UserResponse(user.getUsername(), user.getBalance());
             return ResponseEntity.ok(response);
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -78,14 +78,14 @@ public class BankingController {
     })
     public ResponseEntity<TransactionResponse> deposit(@Valid @RequestBody TransactionRequest request) {
         boolean success = bankingService.deposit(request.getUsername(), request.getPassword(), request.getAmount());
-        
+
         if (success) {
-            User user = bankingService.getAuthenticatedUser(request.getUsername(), request.getPassword());
+            BankingUser user = bankingService.getAuthenticatedUser(request.getUsername(), request.getPassword());
             TransactionResponse response = new TransactionResponse(
-                    "Deposit", 
-                    request.getAmount(), 
-                    java.time.LocalDateTime.now(), 
-                    user.getAccount().getBalance()
+                    "Deposit",
+                    request.getAmount(),
+                    java.time.LocalDateTime.now(),
+                    user != null ? user.getBalance() : 0.0
             );
             return ResponseEntity.ok(response);
         } else {
@@ -102,14 +102,14 @@ public class BankingController {
     })
     public ResponseEntity<TransactionResponse> withdraw(@Valid @RequestBody TransactionRequest request) {
         boolean success = bankingService.withdraw(request.getUsername(), request.getPassword(), request.getAmount());
-        
+
         if (success) {
-            User user = bankingService.getAuthenticatedUser(request.getUsername(), request.getPassword());
+            BankingUser user = bankingService.getAuthenticatedUser(request.getUsername(), request.getPassword());
             TransactionResponse response = new TransactionResponse(
-                    "Withdrawal", 
-                    request.getAmount(), 
-                    java.time.LocalDateTime.now(), 
-                    user.getAccount().getBalance()
+                    "Withdrawal",
+                    request.getAmount(),
+                    java.time.LocalDateTime.now(),
+                    user != null ? user.getBalance() : 0.0
             );
             return ResponseEntity.ok(response);
         } else {
@@ -141,8 +141,8 @@ public class BankingController {
         @ApiResponse(responseCode = "401", description = "Invalid credentials")
     })
     public ResponseEntity<List<TransactionResponse>> getTransactions(@Valid @RequestBody LoginRequest request) {
-        List<Transaction> transactions = bankingService.getTransactions(request.getUsername(), request.getPassword());
-        
+        List<BankingTransaction> transactions = bankingService.getTr ansactions(request.getUsername(), request.getPassword());
+
         if (transactions != null) {
             List<TransactionResponse> response = transactions.stream()
                     .map(t -> new TransactionResponse(t.getType(), t.getAmount(), t.getTimestamp(), 0.0))

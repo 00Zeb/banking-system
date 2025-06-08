@@ -1,109 +1,93 @@
 package com.example.banking.api.service;
 
-import com.example.banking.persistence.FileUserRepository;
-import com.example.banking.persistence.UserRepository;
-import com.example.banking.user.User;
-import com.example.banking.user.UserManager;
-import com.example.banking.domain.Account;
-import com.example.banking.domain.Transaction;
+import com.example.banking.api.model.BankingTransaction;
+import com.example.banking.api.model.BankingUser;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 /**
  * Service layer that wraps the banking core functionality.
- * This service delegates all operations to the existing banking application.
+ * This service delegates all operations to the banking application running as a separate process.
  */
 @Service
 public class BankingService {
 
-    private final UserManager userManager;
+    private final BankingProcessService processService;
 
-    public BankingService() {
-        // Initialize the core banking components
-        UserRepository repository = new FileUserRepository();
-        this.userManager = new UserManager(repository);
+    @Autowired
+    public BankingService(BankingProcessService processService) {
+        this.processService = processService;
     }
 
     /**
      * Register a new user.
      */
     public boolean registerUser(String username, String password) {
-        return userManager.registerUser(username, password);
+        return processService.registerUser(username, password);
     }
 
     /**
      * Authenticate a user and return user information.
      */
-    public User authenticateUser(String username, String password) {
-        return userManager.authenticateUser(username, password);
+    public BankingUser authenticateUser(String username, String password) {
+        return processService.authenticateUser(username, password);
     }
 
     /**
      * Get user by username (for authenticated operations).
      */
-    public User getAuthenticatedUser(String username, String password) {
-        return userManager.authenticateUser(username, password);
+    public BankingUser getAuthenticatedUser(String username, String password) {
+        return processService.authenticateUser(username, password);
     }
 
     /**
      * Perform a deposit operation.
      */
     public boolean deposit(String username, String password, double amount) {
-        User user = userManager.authenticateUser(username, password);
-        if (user != null && amount > 0) {
-            user.getAccount().deposit(amount);
-            return true;
+        if (amount <= 0) {
+            return false;
         }
-        return false;
+        return processService.deposit(username, password, amount);
     }
 
     /**
      * Perform a withdrawal operation.
      */
     public boolean withdraw(String username, String password, double amount) {
-        User user = userManager.authenticateUser(username, password);
-        if (user != null && amount > 0) {
-            Account account = user.getAccount();
-            if (account.getBalance() >= amount) {
-                account.withdraw(amount);
-                return true;
-            }
+        if (amount <= 0) {
+            return false;
         }
-        return false;
+        return processService.withdraw(username, password, amount);
     }
 
     /**
      * Get account balance for a user.
      */
     public Double getBalance(String username, String password) {
-        User user = userManager.authenticateUser(username, password);
-        return user != null ? user.getAccount().getBalance() : null;
+        return processService.getBalance(username, password);
     }
 
     /**
      * Get transaction history for a user.
      */
-    public List<Transaction> getTransactions(String username, String password) {
-        User user = userManager.authenticateUser(username, password);
-        return user != null ? user.getAccount().getTransactions() : null;
+    public List<BankingTransaction> getTransactions(String username, String password) {
+        return processService.getTransactions(username, password);
     }
 
     /**
      * Delete a user account.
      */
     public boolean deleteUser(String username, String password) {
-        User user = userManager.authenticateUser(username, password);
-        if (user != null) {
-            return userManager.deleteUser(username);
-        }
-        return false;
+        return processService.deleteUser(username, password);
     }
 
     /**
      * Save all users (for graceful shutdown).
+     * Note: This is handled automatically by the banking application process.
      */
     public void saveAllUsers() {
-        userManager.saveAllUsers();
+        // No action needed - the banking application handles persistence automatically
     }
 }
