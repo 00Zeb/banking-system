@@ -141,7 +141,7 @@ public class BankingController {
         @ApiResponse(responseCode = "401", description = "Invalid credentials")
     })
     public ResponseEntity<List<TransactionResponse>> getTransactions(@Valid @RequestBody LoginRequest request) {
-        List<BankingTransaction> transactions = bankingService.getTr ansactions(request.getUsername(), request.getPassword());
+        List<BankingTransaction> transactions = bankingService.getTransactions(request.getUsername(), request.getPassword());
 
         if (transactions != null) {
             List<TransactionResponse> response = transactions.stream()
