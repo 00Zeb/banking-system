@@ -21,9 +21,6 @@ public class FileUserRepository implements UserRepository {
     public FileUserRepository() {
         this.userCache = new HashMap<>();
         loadData();
-        
-        // Register shutdown hook to save data when application exits
-        Runtime.getRuntime().addShutdownHook(new Thread(this::saveData));
     }
 
     @Override
@@ -34,8 +31,7 @@ public class FileUserRepository implements UserRepository {
     
     @Override
     public void updateUser(User user) {
-        // This method is called when a user's state changes (e.g., after a transaction)
-        if (userCache.containsKey(user.getUsername())) {
+        if (user != null && userCache.containsKey(user.getUsername())) {
             userCache.put(user.getUsername(), user);
             saveData();
         }
@@ -60,7 +56,7 @@ public class FileUserRepository implements UserRepository {
         }
         return false;
     }
-    
+
     @Override
     public void saveAllUsers() {
         saveData();
