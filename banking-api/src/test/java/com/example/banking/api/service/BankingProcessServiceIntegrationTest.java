@@ -41,7 +41,7 @@ class BankingProcessServiceIntegrationTest {
                 jarLocatorService.getJarInfo() + ". Please build the banking-application first.");
         }
 
-        logger.info("Using JAR: {}", jarLocatorService.getJarInfo());
+        System.out.println("Using JAR: " + jarLocatorService.getJarInfo());
 
         processService = new BankingProcessService(properties, jarLocatorService);
         
@@ -62,20 +62,20 @@ class BankingProcessServiceIntegrationTest {
         // Then
         assertThat(jarLocatorService.getJarPath()).isNotNull();
         assertThat(jarLocatorService.isJarAccessible()).isTrue();
-        logger.info("JAR location test passed: {}", jarLocatorService.getJarInfo());
+        System.out.println("JAR location test passed: " + jarLocatorService.getJarInfo());
     }
 
     @Test
     @DisplayName("Should register user successfully")
     void shouldRegisterUserSuccessfully() {
         // Given
-        logger.info("Testing user registration...");
+        System.out.println("Testing user registration...");
 
         // When
         boolean result = processService.registerUser("testuser", "password123");
 
         // Then
-        logger.info("Registration result: {}", result);
+        System.out.println("Registration result: " + result);
         assertThat(result).isTrue();
     }
 
