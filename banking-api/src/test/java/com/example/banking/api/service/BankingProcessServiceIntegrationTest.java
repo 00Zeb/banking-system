@@ -22,19 +22,28 @@ class BankingProcessServiceIntegrationTest {
 
     private BankingProcessService processService;
     private BankingApplicationProperties properties;
+    private JarLocatorService jarLocatorService;
 
     @BeforeEach
     void setUp() {
         properties = new BankingApplicationProperties();
         
-        // Check if JAR exists
-        File jarFile = new File(properties.getJarPath());
-        if (!jarFile.exists()) {
-            throw new RuntimeException("Banking application JAR not found at: " + properties.getJarPath() + 
-                ". Please build the banking-application first.");
+        // Set a shorter timeout for tests
+        properties.setProcessTimeout(10000); // 10 seconds for tests
+
+        // Initialize JAR locator service
+        jarLocatorService = new JarLocatorService();
+        jarLocatorService.init();
+
+        // Check if JAR is accessible
+        if (!jarLocatorService.isJarAccessible()) {
+            throw new RuntimeException("Banking application JAR not accessible: " +
+                jarLocatorService.getJarInfo() + ". Please build the banking-application first.");
         }
-        
-        processService = new BankingProcessService(properties);
+
+        logger.info("Using JAR: {}", jarLocatorService.getJarInfo());
+
+        processService = new BankingProcessService(properties, jarLocatorService);
         
         // Clean up any existing data files
         cleanupDataFiles();
@@ -48,12 +57,25 @@ class BankingProcessServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("Should locate banking application JAR successfully")
+    void shouldLocateBankingApplicationJar() {
+        // Then
+        assertThat(jarLocatorService.getJarPath()).isNotNull();
+        assertThat(jarLocatorService.isJarAccessible()).isTrue();
+        logger.info("JAR location test passed: {}", jarLocatorService.getJarInfo());
+    }
+
+    @Test
     @DisplayName("Should register user successfully")
     void shouldRegisterUserSuccessfully() {
+        // Given
+        logger.info("Testing user registration...");
+
         // When
         boolean result = processService.registerUser("testuser", "password123");
 
         // Then
+        logger.info("Registration result: {}", result);
         assertThat(result).isTrue();
     }
 

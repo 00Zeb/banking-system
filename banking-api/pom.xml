@@ -38,7 +38,11 @@
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
         </dependency>
 
-        <!-- Banking Core Application - Removed dependency, now using process interaction -->
+        <!-- Banking Core Application JAR for process execution -->
+        <dependency>
+            <groupId>com.example</groupId>
+            <artifactId>banking-application</artifactId>
+        </dependency>
 
         <!-- Test Dependencies -->
         <dependency>

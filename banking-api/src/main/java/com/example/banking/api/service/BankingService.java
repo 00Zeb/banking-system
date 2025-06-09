@@ -9,7 +9,8 @@ import java.util.List;
 
 /**
  * Service layer that wraps the banking core functionality.
- * This service delegates all operations to the banking application running as a separate process.
+ * This service delegates all operations to the banking application JAR process
+ * using Maven dependency management for JAR location.
  */
 @Service
 public class BankingService {

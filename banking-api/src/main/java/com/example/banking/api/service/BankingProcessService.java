@@ -28,15 +28,17 @@ public class BankingProcessService {
     private static final Logger logger = LoggerFactory.getLogger(BankingProcessService.class);
     
     private final BankingApplicationProperties properties;
-    
+    private final JarLocatorService jarLocatorService;
+
     // Patterns for parsing output
     private static final Pattern BALANCE_PATTERN = Pattern.compile("Current Balance: \\$([0-9]+\\.?[0-9]*)");
     private static final Pattern TRANSACTION_PATTERN = Pattern.compile("\\[([0-9-: ]+)\\] ([^:]+): \\$([0-9]+\\.?[0-9]*)");
     private static final DateTimeFormatter TRANSACTION_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    
+
     @Autowired
-    public BankingProcessService(BankingApplicationProperties properties) {
+    public BankingProcessService(BankingApplicationProperties properties, JarLocatorService jarLocatorService) {
         this.properties = properties;
+        this.jarLocatorService = jarLocatorService;
     }
     
     /**
@@ -147,18 +149,26 @@ public class BankingProcessService {
     }
     
     /**
-     * Start the banking application process.
+     * Start the banking application process using the JAR located by JarLocatorService.
      */
     private Process startBankingProcess() throws IOException {
+        String jarPath = jarLocatorService.getJarPath();
+
+        if (jarPath == null || !jarLocatorService.isJarAccessible()) {
+            throw new IOException("Banking application JAR not accessible: " + jarLocatorService.getJarInfo());
+        }
+
+        logger.debug("Starting banking process with JAR: {}", jarPath);
+
         ProcessBuilder processBuilder = new ProcessBuilder(
-            properties.getJavaCommand(), 
-            "-jar", 
-            properties.getJarPath()
+            properties.getJavaCommand(),
+            "-jar",
+            jarPath
         );
-        
-        // Set working directory to the banking-api directory to ensure proper file paths
+
+        // Set working directory to the current directory
         processBuilder.directory(new File("."));
-        
+
         return processBuilder.start();
     }
     
