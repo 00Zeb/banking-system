@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/v1/banking")
+@CrossOrigin(origins = {"http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8081", "http://127.0.0.1:8081"})
 @Tag(name = "Banking API", description = "REST API for banking operations")
 public class BankingController {
 
@@ -31,6 +32,17 @@ public class BankingController {
     @Autowired
     public BankingController(BankingService bankingService) {
         this.bankingService = bankingService;
+    }
+
+    @RequestMapping(method = RequestMethod.OPTIONS)
+    public ResponseEntity<?> handleOptions() {
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/health")
+    @Operation(summary = "Health check", description = "Simple health check endpoint for CORS testing")
+    public ResponseEntity<com.example.banking.api.dto.ApiResponse> health() {
+        return ResponseEntity.ok(com.example.banking.api.dto.ApiResponse.success("Banking API is running"));
     }
 
     @PostMapping("/register")
