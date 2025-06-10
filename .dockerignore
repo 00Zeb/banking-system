@@ -1,0 +1,42 @@
+# Docker ignore file for banking system
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Node modules (if any)
+node_modules/
+
+# Build artifacts that will be rebuilt in Docker (commented out since we build inside Docker)
+# */target/
+# target/
+
+# Test reports
+*/surefire-reports/
+*/failsafe-reports/
+
+# Maven local repository cache
+.m2/

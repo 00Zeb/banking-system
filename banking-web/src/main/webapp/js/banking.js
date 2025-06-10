@@ -2,7 +2,7 @@
 // Simple client for interacting with the Banking REST API
 
 // Configuration
-const API_BASE_URL = 'http://localhost:8080/api/v1/banking';
+const API_BASE_URL = window.BANKING_CONFIG ? window.BANKING_CONFIG.API_BASE_URL : 'http://localhost:8080/api/v1/banking';
 
 // Global state
 let currentUser = null;
@@ -10,6 +10,12 @@ let currentCredentials = null;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
+    // Update API URL display
+    const apiUrlElement = document.getElementById('apiUrl');
+    if (apiUrlElement) {
+        apiUrlElement.textContent = API_BASE_URL.replace('/api/v1/banking', '');
+    }
+
     checkApiStatus();
     showLoginSection();
 });

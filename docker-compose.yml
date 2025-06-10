@@ -1,0 +1,44 @@
+services:
+  banking-api:
+    build:
+      context: .
+      dockerfile: banking-api/Dockerfile
+    container_name: banking-api
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SERVER_PORT=8080
+    volumes:
+      - banking_data:/app/data
+    networks:
+      - banking-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/v1/banking/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  banking-web:
+    build:
+      context: .
+      dockerfile: banking-web/Dockerfile
+    container_name: banking-web
+    ports:
+      - "3000:3000"
+    environment:
+      - BANKING_API_URL=http://banking-api:8080
+    depends_on:
+      banking-api:
+        condition: service_healthy
+    networks:
+      - banking-network
+
+volumes:
+  banking_data:
+    driver: local
+
+networks:
+  banking-network:
+    driver: bridge
