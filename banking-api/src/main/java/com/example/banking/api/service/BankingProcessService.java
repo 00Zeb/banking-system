@@ -99,83 +99,184 @@ public class BankingProcessService {
     public BankingUser authenticateUser(String username, String password) {
         try {
             Process process = startBankingProcess();
-            
+
             try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
                  BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
 
-                // Wait for the main menu to appear
-                String initialOutput = waitForPrompt(reader, "Choose an option:");
-                logger.debug("Initial menu output: {}", initialOutput);
+                logger.info("=== AUTHENTICATION DEBUG START ===");
 
-                // Navigate to login
-                writer.write("1\n"); // Choose login option
+                // Step 1: Wait for initial output and log everything
+                logger.info("Step 1: Waiting for initial menu...");
+                String initialOutput = readAllAvailableOutput(reader, 3000); // Wait 3 seconds
+                logger.info("Step 1 - Raw initial output: [{}]", initialOutput);
+
+                // Check if we have a menu
+                if (!initialOutput.toLowerCase().contains("login") && !initialOutput.toLowerCase().contains("choose")) {
+                    logger.error("No menu found in initial output");
+                    return null;
+                }
+
+                // Step 2: Send login option
+                logger.info("Step 2: Sending login option (1)...");
+                writer.write("1\n");
                 writer.flush();
 
-                // Wait for username prompt
-                String usernamePrompt = waitForPrompt(reader, "Username:");
-                logger.debug("Username prompt output: {}", usernamePrompt);
+                // Step 3: Wait for username prompt
+                logger.info("Step 3: Waiting for username prompt...");
+                String usernameOutput = readAllAvailableOutput(reader, 2000); // Wait 2 seconds
+                logger.info("Step 3 - Raw username output: [{}]", usernameOutput);
 
-                // Enter username
+                // Step 4: Send username
+                logger.info("Step 4: Sending username: {}", username);
                 writer.write(username + "\n");
                 writer.flush();
 
-                // Wait for password prompt
-                String passwordPrompt = waitForPrompt(reader, "Password:");
-                logger.debug("Password prompt output: {}", passwordPrompt);
+                // Step 5: Wait for password prompt
+                logger.info("Step 5: Waiting for password prompt...");
+                String passwordOutput = readAllAvailableOutput(reader, 2000); // Wait 2 seconds
+                logger.info("Step 5 - Raw password output: [{}]", passwordOutput);
 
-                // Enter password
+                // Step 6: Send password
+                logger.info("Step 6: Sending password...");
                 writer.write(password + "\n");
                 writer.flush();
 
-                // Read authentication result
-                String output = readProcessOutput(reader);
-                logger.debug("Authentication output: {}", output);
-                
-                if (output.contains("Welcome, " + username + "!")) {
-                    // Authentication successful
-                    // We're now in the banking menu, wait for it to appear
-                    String bankingMenuOutput = waitForPrompt(reader, "Please choose an option:");
-                    logger.debug("Banking menu output: {}", bankingMenuOutput);
+                // Step 7: Wait for authentication result
+                logger.info("Step 7: Waiting for authentication result...");
+                String authResult = readAllAvailableOutput(reader, 3000); // Wait 3 seconds
+                logger.info("Step 7 - Raw auth result: [{}]", authResult);
 
-                    // Logout to get back to main menu
+                // Step 8: Analyze the result
+                logger.info("Step 8: Analyzing authentication result...");
+                boolean isSuccessful = isAuthenticationSuccessful(authResult, username);
+                logger.info("Step 8 - Authentication successful: {}", isSuccessful);
+
+                if (isSuccessful) {
+                    // Step 9: Handle successful login - try to logout gracefully
+                    logger.info("Step 9: Attempting graceful logout...");
+
+                    // Try to send logout command (4) and then exit (3)
                     writer.write("4\n"); // Logout
                     writer.flush();
 
-                    // Wait for main menu to appear again
-                    String mainMenuOutput = waitForPrompt(reader, "Choose an option:");
-                    logger.debug("Main menu after logout: {}", mainMenuOutput);
+                    String logoutOutput = readAllAvailableOutput(reader, 2000);
+                    logger.info("Step 9 - Logout output: [{}]", logoutOutput);
 
-                    // Exit
                     writer.write("3\n"); // Exit
                     writer.flush();
 
-                    // Parse balance from output if available (default to 0.0 since balance isn't shown in welcome)
-                    double balance = 0.0;
-
                     process.waitFor(properties.getProcessTimeout(), TimeUnit.MILLISECONDS);
 
-                    return new BankingUser(username, balance);
+                    logger.info("=== AUTHENTICATION DEBUG END - SUCCESS ===");
+                    return new BankingUser(username, 0.0);
                 } else {
-                    // Authentication failed, wait for main menu and exit
-                    String mainMenuOutput = waitForPrompt(reader, "Choose an option:");
-                    logger.debug("Main menu after failed auth: {}", mainMenuOutput);
+                    // Step 10: Handle failed login
+                    logger.info("Step 10: Handling failed authentication...");
 
+                    // Try to exit gracefully
                     writer.write("3\n"); // Exit
                     writer.flush();
+
                     process.waitFor(properties.getProcessTimeout(), TimeUnit.MILLISECONDS);
+
+                    logger.info("=== AUTHENTICATION DEBUG END - FAILURE ===");
                     return null;
                 }
-                
+
             } finally {
                 if (process.isAlive()) {
+                    logger.info("Force killing process...");
                     process.destroyForcibly();
                 }
             }
-            
+
         } catch (Exception e) {
             logger.error("Error during user authentication", e);
             return null;
         }
+    }
+
+    /**
+     * Read all available output within a time limit.
+     */
+    private String readAllAvailableOutput(BufferedReader reader, long timeoutMs) throws IOException {
+        StringBuilder output = new StringBuilder();
+
+        // Wait for initial output
+        try {
+            Thread.sleep(1000); // Give process time to start and produce output
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        // Read all available output using character-by-character reading (like the working test)
+        while (reader.ready()) {
+            int ch = reader.read();
+            if (ch != -1) {
+                output.append((char) ch);
+            }
+        }
+
+        // If we didn't get anything, wait a bit more and try again
+        if (output.length() == 0) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
+            while (reader.ready()) {
+                int ch = reader.read();
+                if (ch != -1) {
+                    output.append((char) ch);
+                }
+            }
+        }
+
+        String result = output.toString();
+        logger.debug("Raw output: [{}]", result);
+        return result; // Don't clean the output, work with raw text
+    }
+
+    /**
+     * Determine if authentication was successful based on the output.
+     */
+    private boolean isAuthenticationSuccessful(String output, String username) {
+        if (output == null || output.trim().isEmpty()) {
+            logger.debug("No output to analyze");
+            return false;
+        }
+
+        String lowerOutput = output.toLowerCase();
+
+        // Look for various success indicators based on actual banking app output
+        boolean hasWelcome = lowerOutput.contains("welcome");
+        boolean hasUsername = lowerOutput.contains(username.toLowerCase());
+        boolean hasSuccessfulLogin = lowerOutput.contains("successful");
+        boolean hasLoggedIn = lowerOutput.contains("logged in");
+        boolean hasBankingMenu = lowerOutput.contains("deposit") || lowerOutput.contains("withdraw") || lowerOutput.contains("balance");
+        boolean hasAccountMenu = lowerOutput.contains("please choose an option") && (lowerOutput.contains("deposit") || lowerOutput.contains("withdraw"));
+
+        // Look for failure indicators
+        boolean hasInvalidCredentials = lowerOutput.contains("invalid") || lowerOutput.contains("incorrect") || lowerOutput.contains("wrong");
+        boolean hasLoginFailed = lowerOutput.contains("failed") || lowerOutput.contains("error");
+        boolean hasAccessDenied = lowerOutput.contains("access denied") || lowerOutput.contains("authentication failed");
+
+        logger.debug("Authentication analysis - Welcome: {}, Username: {}, Successful: {}, LoggedIn: {}, BankingMenu: {}, AccountMenu: {}, Invalid: {}, Failed: {}, AccessDenied: {}",
+                    hasWelcome, hasUsername, hasSuccessfulLogin, hasLoggedIn, hasBankingMenu, hasAccountMenu, hasInvalidCredentials, hasLoginFailed, hasAccessDenied);
+
+        // If we have clear failure indicators, it's a failure
+        if (hasInvalidCredentials || hasLoginFailed || hasAccessDenied) {
+            return false;
+        }
+
+        // If we have success indicators, it's a success
+        if ((hasWelcome && hasUsername) || hasSuccessfulLogin || hasLoggedIn || hasBankingMenu || hasAccountMenu) {
+            return true;
+        }
+
+        // Default to failure if we can't determine
+        return false;
     }
     
     /**

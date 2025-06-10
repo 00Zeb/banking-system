@@ -46,27 +46,28 @@ public class JarLocatorService {
     }
     
     /**
-     * Locate the banking-application JAR file from the classpath.
+     * Locate the banking-application JAR file.
+     * Prioritize file system since that's where the executable JAR with dependencies is.
      */
     private String locateBankingApplicationJar() throws IOException {
-        // First, try to find the JAR in the classpath
+        // First, try the file system approach to find the executable JAR
+        String jarFromFileSystem = findJarInFileSystem();
+        if (jarFromFileSystem != null) {
+            return jarFromFileSystem;
+        }
+
+        // If not found in file system, try to find the JAR in the classpath
         String jarFromClasspath = findJarInClasspath();
         if (jarFromClasspath != null) {
             return jarFromClasspath;
         }
-        
+
         // If not found in classpath, try to extract from resources
         String jarFromResources = extractJarFromResources();
         if (jarFromResources != null) {
             return jarFromResources;
         }
-        
-        // Fallback: try the original file system approach
-        String jarFromFileSystem = findJarInFileSystem();
-        if (jarFromFileSystem != null) {
-            return jarFromFileSystem;
-        }
-        
+
         throw new IOException("Banking application JAR not found in any location");
     }
     
@@ -130,15 +131,16 @@ public class JarLocatorService {
     
     /**
      * Fallback: try to find the JAR in the file system using relative paths.
+     * Prioritize the jar-with-dependencies version since that's the executable one.
      */
     private String findJarInFileSystem() {
         String[] possiblePaths = {
-            "../banking-application/target/banking-application-1.0-SNAPSHOT.jar",
             "../banking-application/target/banking-application-1.0-SNAPSHOT-jar-with-dependencies.jar",
-            "banking-application/target/banking-application-1.0-SNAPSHOT.jar",
             "banking-application/target/banking-application-1.0-SNAPSHOT-jar-with-dependencies.jar",
-            "./banking-application-1.0-SNAPSHOT.jar",
-            "./banking-application-1.0-SNAPSHOT-jar-with-dependencies.jar"
+            "../banking-application/target/banking-application-1.0-SNAPSHOT.jar",
+            "banking-application/target/banking-application-1.0-SNAPSHOT.jar",
+            "./banking-application-1.0-SNAPSHOT-jar-with-dependencies.jar",
+            "./banking-application-1.0-SNAPSHOT.jar"
         };
         
         for (String path : possiblePaths) {
