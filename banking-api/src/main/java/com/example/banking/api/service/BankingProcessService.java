@@ -111,7 +111,7 @@ public class BankingProcessService {
 
                 // Step 1: Wait for initial output and log everything
                 logger.info("Step 1: Waiting for initial menu...");
-                String initialOutput = readAllAvailableOutput(reader, 3000); // Wait 3 seconds
+                String initialOutput = readAllAvailableOutput(reader, 500); // Fast: 500ms max
                 logger.info("Step 1 - Raw initial output: [{}]", initialOutput);
 
                 // Check if we have a menu
@@ -127,7 +127,7 @@ public class BankingProcessService {
 
                 // Step 3: Wait for username prompt
                 logger.info("Step 3: Waiting for username prompt...");
-                String usernameOutput = readAllAvailableOutput(reader, 2000); // Wait 2 seconds
+                String usernameOutput = readAllAvailableOutput(reader, 300); // Fast: 300ms max
                 logger.info("Step 3 - Raw username output: [{}]", usernameOutput);
 
                 // Step 4: Send username
@@ -137,7 +137,7 @@ public class BankingProcessService {
 
                 // Step 5: Wait for password prompt
                 logger.info("Step 5: Waiting for password prompt...");
-                String passwordOutput = readAllAvailableOutput(reader, 2000); // Wait 2 seconds
+                String passwordOutput = readAllAvailableOutput(reader, 300); // Fast: 300ms max
                 logger.info("Step 5 - Raw password output: [{}]", passwordOutput);
 
                 // Step 6: Send password
@@ -147,7 +147,7 @@ public class BankingProcessService {
 
                 // Step 7: Wait for authentication result
                 logger.info("Step 7: Waiting for authentication result...");
-                String authResult = readAllAvailableOutput(reader, 3000); // Wait 3 seconds
+                String authResult = readAllAvailableOutput(reader, 500); // Fast: 500ms max
                 logger.info("Step 7 - Raw auth result: [{}]", authResult);
 
                 // Step 8: Analyze the result
@@ -163,7 +163,7 @@ public class BankingProcessService {
                     writer.write("4\n"); // Logout
                     writer.flush();
 
-                    String logoutOutput = readAllAvailableOutput(reader, 2000);
+                    String logoutOutput = readAllAvailableOutput(reader, 300);
                     logger.info("Step 9 - Logout output: [{}]", logoutOutput);
 
                     writer.write("3\n"); // Exit
@@ -201,8 +201,8 @@ public class BankingProcessService {
     }
 
     /**
-     * Read all available output within a time limit using optimized asynchronous I/O.
-     * This replaces the slow Thread.sleep() approach with efficient polling and smart delays.
+     * Read all available output using completely sleep-free event-driven I/O.
+     * This uses pure polling with immediate response when data is available.
      */
     private String readAllAvailableOutput(BufferedReader reader, long timeoutMs) throws IOException {
         try {
@@ -211,38 +211,36 @@ public class BankingProcessService {
                 try {
                     long startTime = System.currentTimeMillis();
                     boolean hasData = false;
-                    int consecutiveEmptyReads = 0;
+                    int emptyReadCount = 0;
 
-                    // Initial small delay to let process start
-                    Thread.sleep(100);
+                    // Small initial delay only for the first read to let process start
+                    if (timeoutMs >= 500) { // Only for initial menu reads
+                        Thread.sleep(200); // Minimal delay for process startup
+                    }
 
                     while (System.currentTimeMillis() - startTime < timeoutMs) {
-                        // Check if data is available
+                        // Check if data is available - NO SLEEP!
                         if (reader.ready()) {
                             hasData = true;
-                            consecutiveEmptyReads = 0;
+                            emptyReadCount = 0;
 
-                            // Read all available characters
+                            // Read all available characters immediately
                             while (reader.ready()) {
                                 int ch = reader.read();
                                 if (ch != -1) {
                                     output.append((char) ch);
                                 }
                             }
-
-                            // Small delay to allow more data to arrive
-                            Thread.sleep(25);
                         } else {
-                            consecutiveEmptyReads++;
+                            emptyReadCount++;
 
-                            // If we had data before and now there's none, we might be done
-                            if (hasData && consecutiveEmptyReads > 3) {
+                            // If we had data and now there's none for a while, we're probably done
+                            if (hasData && emptyReadCount > 1000) { // ~1ms of empty reads
                                 break;
                             }
 
-                            // Adaptive delay - start small and increase slightly
-                            long delay = Math.min(50, 10 + consecutiveEmptyReads * 5);
-                            Thread.sleep(delay);
+                            // Yield CPU to other threads but don't sleep
+                            Thread.yield();
                         }
                     }
                 } catch (Exception e) {
@@ -251,7 +249,7 @@ public class BankingProcessService {
                 return output.toString();
             }, executorService);
 
-            String result = readFuture.get(timeoutMs + 500, TimeUnit.MILLISECONDS);
+            String result = readFuture.get(timeoutMs + 100, TimeUnit.MILLISECONDS);
             logger.debug("Raw output: [{}]", result);
             return result;
 
@@ -360,20 +358,19 @@ public class BankingProcessService {
     }
     
     /**
-     * Read all available output from the process using asynchronous I/O.
-     * This replaces the slow polling approach with efficient event-driven reading.
+     * Read all available output from the process using completely sleep-free I/O.
      */
     private String readProcessOutput(BufferedReader reader) throws IOException {
-        // Use the fast async method with a reasonable timeout
-        String rawOutput = readAllAvailableOutput(reader, 2000);
+        // Use the fast sleep-free method with a short timeout
+        String rawOutput = readAllAvailableOutput(reader, 1000);
         String result = cleanOutput(rawOutput);
         logger.debug("Process output (cleaned): {}", result);
         return result;
     }
 
     /**
-     * Wait for a specific prompt or text to appear in the output using optimized asynchronous I/O.
-     * This replaces the slow polling approach with efficient reading and smart delays.
+     * Wait for a specific prompt using completely sleep-free event-driven I/O.
+     * This uses pure polling with immediate response when data is available.
      */
     private String waitForPrompt(BufferedReader reader, String expectedPrompt) throws IOException {
         try {
@@ -381,17 +378,14 @@ public class BankingProcessService {
                 try {
                     StringBuilder output = new StringBuilder();
                     long startTime = System.currentTimeMillis();
-                    long maxWaitTime = 3000; // 3 seconds max
-                    int consecutiveEmptyReads = 0;
-
-                    // Initial small delay
-                    Thread.sleep(50);
+                    long maxWaitTime = 2000; // 2 seconds max
+                    int emptyReadCount = 0;
 
                     while (System.currentTimeMillis() - startTime < maxWaitTime) {
                         if (reader.ready()) {
-                            consecutiveEmptyReads = 0;
+                            emptyReadCount = 0;
 
-                            // Read all available characters
+                            // Read all available characters immediately
                             while (reader.ready()) {
                                 int ch = reader.read();
                                 if (ch != -1) {
@@ -404,15 +398,16 @@ public class BankingProcessService {
                                 logger.debug("Found expected prompt: {}", expectedPrompt);
                                 return cleanedOutput;
                             }
-
-                            // Small delay after reading
-                            Thread.sleep(25);
                         } else {
-                            consecutiveEmptyReads++;
+                            emptyReadCount++;
 
-                            // Adaptive delay
-                            long delay = Math.min(100, 25 + consecutiveEmptyReads * 10);
-                            Thread.sleep(delay);
+                            // If we've been waiting too long without data, continue polling
+                            if (emptyReadCount > 10000) { // Reset counter to avoid overflow
+                                emptyReadCount = 1000;
+                            }
+
+                            // Yield CPU but don't sleep
+                            Thread.yield();
                         }
                     }
 
@@ -426,7 +421,7 @@ public class BankingProcessService {
                 }
             }, executorService);
 
-            return promptFuture.get(4, TimeUnit.SECONDS);
+            return promptFuture.get(3, TimeUnit.SECONDS);
 
         } catch (TimeoutException e) {
             logger.debug("Timeout waiting for prompt: {}", expectedPrompt);
@@ -490,7 +485,7 @@ public class BankingProcessService {
 
                 // Step 1: Wait for initial output and log everything
                 logger.info("Step 1: Waiting for initial menu...");
-                String initialOutput = readAllAvailableOutput(reader, 3000); // Wait 3 seconds
+                String initialOutput = readAllAvailableOutput(reader, 500); // Fast: 500ms max
                 logger.info("Step 1 - Raw initial output: [{}]", initialOutput);
 
                 // Check if we have a menu
@@ -506,7 +501,7 @@ public class BankingProcessService {
 
                 // Step 3: Wait for username prompt
                 logger.info("Step 3: Waiting for username prompt...");
-                String usernameOutput = readAllAvailableOutput(reader, 2000); // Wait 2 seconds
+                String usernameOutput = readAllAvailableOutput(reader, 300); // Fast: 300ms max
                 logger.info("Step 3 - Raw username output: [{}]", usernameOutput);
 
                 // Step 4: Send username
@@ -516,7 +511,7 @@ public class BankingProcessService {
 
                 // Step 5: Wait for password prompt
                 logger.info("Step 5: Waiting for password prompt...");
-                String passwordOutput = readAllAvailableOutput(reader, 2000); // Wait 2 seconds
+                String passwordOutput = readAllAvailableOutput(reader, 300); // Fast: 300ms max
                 logger.info("Step 5 - Raw password output: [{}]", passwordOutput);
 
                 // Step 6: Send password
@@ -526,7 +521,7 @@ public class BankingProcessService {
 
                 // Step 7: Wait for authentication result
                 logger.info("Step 7: Waiting for authentication result...");
-                String authResult = readAllAvailableOutput(reader, 3000); // Wait 3 seconds
+                String authResult = readAllAvailableOutput(reader, 500); // Fast: 500ms max
                 logger.info("Step 7 - Raw auth result: [{}]", authResult);
 
                 // Step 8: Analyze the result
@@ -544,7 +539,7 @@ public class BankingProcessService {
 
                 // Step 9: Wait for banking menu and perform deposit
                 logger.info("Step 9: Waiting for banking menu...");
-                String bankingMenuOutput = readAllAvailableOutput(reader, 2000);
+                String bankingMenuOutput = readAllAvailableOutput(reader, 300);
                 logger.info("Step 9 - Banking menu output: [{}]", bankingMenuOutput);
 
                 // Step 10: Send deposit option
@@ -554,7 +549,7 @@ public class BankingProcessService {
 
                 // Step 11: Wait for deposit amount prompt
                 logger.info("Step 11: Waiting for deposit amount prompt...");
-                String depositPromptOutput = readAllAvailableOutput(reader, 2000);
+                String depositPromptOutput = readAllAvailableOutput(reader, 300);
                 logger.info("Step 11 - Deposit prompt output: [{}]", depositPromptOutput);
 
                 // Step 12: Send deposit amount
@@ -564,7 +559,7 @@ public class BankingProcessService {
 
                 // Step 13: Wait for deposit result
                 logger.info("Step 13: Waiting for deposit result...");
-                String depositResult = readAllAvailableOutput(reader, 3000);
+                String depositResult = readAllAvailableOutput(reader, 500);
                 logger.info("Step 13 - Deposit result: [{}]", depositResult);
 
                 // Step 14: Check if deposit was successful
@@ -578,7 +573,7 @@ public class BankingProcessService {
                 writer.write("4\n"); // Logout
                 writer.flush();
 
-                String logoutOutput = readAllAvailableOutput(reader, 2000);
+                String logoutOutput = readAllAvailableOutput(reader, 300);
                 logger.info("Step 15 - Logout output: [{}]", logoutOutput);
 
                 writer.write("3\n"); // Exit
@@ -616,7 +611,7 @@ public class BankingProcessService {
 
                 // Step 1: Wait for initial output and log everything
                 logger.info("Step 1: Waiting for initial menu...");
-                String initialOutput = readAllAvailableOutput(reader, 3000); // Wait 3 seconds
+                String initialOutput = readAllAvailableOutput(reader, 500); // Fast: 500ms max
                 logger.info("Step 1 - Raw initial output: [{}]", initialOutput);
 
                 // Check if we have a menu
@@ -632,7 +627,7 @@ public class BankingProcessService {
 
                 // Step 3: Wait for username prompt
                 logger.info("Step 3: Waiting for username prompt...");
-                String usernameOutput = readAllAvailableOutput(reader, 2000); // Wait 2 seconds
+                String usernameOutput = readAllAvailableOutput(reader, 300); // Fast: 300ms max
                 logger.info("Step 3 - Raw username output: [{}]", usernameOutput);
 
                 // Step 4: Send username
@@ -642,7 +637,7 @@ public class BankingProcessService {
 
                 // Step 5: Wait for password prompt
                 logger.info("Step 5: Waiting for password prompt...");
-                String passwordOutput = readAllAvailableOutput(reader, 2000); // Wait 2 seconds
+                String passwordOutput = readAllAvailableOutput(reader, 300); // Fast: 300ms max
                 logger.info("Step 5 - Raw password output: [{}]", passwordOutput);
 
                 // Step 6: Send password
@@ -652,7 +647,7 @@ public class BankingProcessService {
 
                 // Step 7: Wait for authentication result
                 logger.info("Step 7: Waiting for authentication result...");
-                String authResult = readAllAvailableOutput(reader, 3000); // Wait 3 seconds
+                String authResult = readAllAvailableOutput(reader, 500); // Fast: 500ms max
                 logger.info("Step 7 - Raw auth result: [{}]", authResult);
 
                 // Step 8: Analyze the result
@@ -670,7 +665,7 @@ public class BankingProcessService {
 
                 // Step 9: Wait for banking menu and perform withdrawal
                 logger.info("Step 9: Waiting for banking menu...");
-                String bankingMenuOutput = readAllAvailableOutput(reader, 2000);
+                String bankingMenuOutput = readAllAvailableOutput(reader, 300);
                 logger.info("Step 9 - Banking menu output: [{}]", bankingMenuOutput);
 
                 // Step 10: Send withdrawal option
@@ -680,7 +675,7 @@ public class BankingProcessService {
 
                 // Step 11: Wait for withdrawal amount prompt
                 logger.info("Step 11: Waiting for withdrawal amount prompt...");
-                String withdrawPromptOutput = readAllAvailableOutput(reader, 2000);
+                String withdrawPromptOutput = readAllAvailableOutput(reader, 300);
                 logger.info("Step 11 - Withdrawal prompt output: [{}]", withdrawPromptOutput);
 
                 // Step 12: Send withdrawal amount
@@ -690,7 +685,7 @@ public class BankingProcessService {
 
                 // Step 13: Wait for withdrawal result
                 logger.info("Step 13: Waiting for withdrawal result...");
-                String withdrawResult = readAllAvailableOutput(reader, 3000);
+                String withdrawResult = readAllAvailableOutput(reader, 500);
                 logger.info("Step 13 - Withdrawal result: [{}]", withdrawResult);
 
                 // Step 14: Check if withdrawal was successful
@@ -704,7 +699,7 @@ public class BankingProcessService {
                 writer.write("4\n"); // Logout
                 writer.flush();
 
-                String logoutOutput = readAllAvailableOutput(reader, 2000);
+                String logoutOutput = readAllAvailableOutput(reader, 300);
                 logger.info("Step 15 - Logout output: [{}]", logoutOutput);
 
                 writer.write("3\n"); // Exit
@@ -742,7 +737,7 @@ public class BankingProcessService {
 
                 // Step 1: Wait for initial output and log everything
                 logger.info("Step 1: Waiting for initial menu...");
-                String initialOutput = readAllAvailableOutput(reader, 3000); // Wait 3 seconds
+                String initialOutput = readAllAvailableOutput(reader, 500); // Fast: 500ms max
                 logger.info("Step 1 - Raw initial output: [{}]", initialOutput);
 
                 // Check if we have a menu
@@ -758,7 +753,7 @@ public class BankingProcessService {
 
                 // Step 3: Wait for username prompt
                 logger.info("Step 3: Waiting for username prompt...");
-                String usernameOutput = readAllAvailableOutput(reader, 2000); // Wait 2 seconds
+                String usernameOutput = readAllAvailableOutput(reader, 300); // Fast: 300ms max
                 logger.info("Step 3 - Raw username output: [{}]", usernameOutput);
 
                 // Step 4: Send username
@@ -768,7 +763,7 @@ public class BankingProcessService {
 
                 // Step 5: Wait for password prompt
                 logger.info("Step 5: Waiting for password prompt...");
-                String passwordOutput = readAllAvailableOutput(reader, 2000); // Wait 2 seconds
+                String passwordOutput = readAllAvailableOutput(reader, 300); // Fast: 300ms max
                 logger.info("Step 5 - Raw password output: [{}]", passwordOutput);
 
                 // Step 6: Send password
@@ -778,7 +773,7 @@ public class BankingProcessService {
 
                 // Step 7: Wait for authentication result
                 logger.info("Step 7: Waiting for authentication result...");
-                String authResult = readAllAvailableOutput(reader, 3000); // Wait 3 seconds
+                String authResult = readAllAvailableOutput(reader, 500); // Fast: 500ms max
                 logger.info("Step 7 - Raw auth result: [{}]", authResult);
 
                 // Step 8: Analyze the result
@@ -796,7 +791,7 @@ public class BankingProcessService {
 
                 // Step 9: Wait for banking menu and list transactions
                 logger.info("Step 9: Waiting for banking menu...");
-                String bankingMenuOutput = readAllAvailableOutput(reader, 2000);
+                String bankingMenuOutput = readAllAvailableOutput(reader, 300);
                 logger.info("Step 9 - Banking menu output: [{}]", bankingMenuOutput);
 
                 // Step 10: Send list transactions option
@@ -806,7 +801,7 @@ public class BankingProcessService {
 
                 // Step 11: Wait for transaction output
                 logger.info("Step 11: Waiting for transaction output...");
-                String transactionOutput = readAllAvailableOutput(reader, 3000);
+                String transactionOutput = readAllAvailableOutput(reader, 500);
                 logger.info("Step 11 - Transaction output: [{}]", transactionOutput);
 
                 // Step 12: Parse balance from output
@@ -818,7 +813,7 @@ public class BankingProcessService {
                 writer.write("4\n"); // Logout
                 writer.flush();
 
-                String logoutOutput = readAllAvailableOutput(reader, 2000);
+                String logoutOutput = readAllAvailableOutput(reader, 300);
                 logger.info("Step 13 - Logout output: [{}]", logoutOutput);
 
                 writer.write("3\n"); // Exit
@@ -856,7 +851,7 @@ public class BankingProcessService {
 
                 // Step 1: Wait for initial output and log everything
                 logger.info("Step 1: Waiting for initial menu...");
-                String initialOutput = readAllAvailableOutput(reader, 3000); // Wait 3 seconds
+                String initialOutput = readAllAvailableOutput(reader, 500); // Fast: 500ms max
                 logger.info("Step 1 - Raw initial output: [{}]", initialOutput);
 
                 // Check if we have a menu
@@ -872,7 +867,7 @@ public class BankingProcessService {
 
                 // Step 3: Wait for username prompt
                 logger.info("Step 3: Waiting for username prompt...");
-                String usernameOutput = readAllAvailableOutput(reader, 2000); // Wait 2 seconds
+                String usernameOutput = readAllAvailableOutput(reader, 300); // Fast: 300ms max
                 logger.info("Step 3 - Raw username output: [{}]", usernameOutput);
 
                 // Step 4: Send username
@@ -882,7 +877,7 @@ public class BankingProcessService {
 
                 // Step 5: Wait for password prompt
                 logger.info("Step 5: Waiting for password prompt...");
-                String passwordOutput = readAllAvailableOutput(reader, 2000); // Wait 2 seconds
+                String passwordOutput = readAllAvailableOutput(reader, 300); // Fast: 300ms max
                 logger.info("Step 5 - Raw password output: [{}]", passwordOutput);
 
                 // Step 6: Send password
@@ -892,7 +887,7 @@ public class BankingProcessService {
 
                 // Step 7: Wait for authentication result
                 logger.info("Step 7: Waiting for authentication result...");
-                String authResult = readAllAvailableOutput(reader, 3000); // Wait 3 seconds
+                String authResult = readAllAvailableOutput(reader, 500); // Fast: 500ms max
                 logger.info("Step 7 - Raw auth result: [{}]", authResult);
 
                 // Step 8: Analyze the result
@@ -910,7 +905,7 @@ public class BankingProcessService {
 
                 // Step 9: Wait for banking menu and list transactions
                 logger.info("Step 9: Waiting for banking menu...");
-                String bankingMenuOutput = readAllAvailableOutput(reader, 2000);
+                String bankingMenuOutput = readAllAvailableOutput(reader, 300);
                 logger.info("Step 9 - Banking menu output: [{}]", bankingMenuOutput);
 
                 // Step 10: Send list transactions option
@@ -920,7 +915,7 @@ public class BankingProcessService {
 
                 // Step 11: Wait for transaction output
                 logger.info("Step 11: Waiting for transaction output...");
-                String transactionOutput = readAllAvailableOutput(reader, 3000);
+                String transactionOutput = readAllAvailableOutput(reader, 500);
                 logger.info("Step 11 - Transaction output: [{}]", transactionOutput);
 
                 // Step 12: Parse transactions from output
@@ -932,7 +927,7 @@ public class BankingProcessService {
                 writer.write("4\n"); // Logout
                 writer.flush();
 
-                String logoutOutput = readAllAvailableOutput(reader, 2000);
+                String logoutOutput = readAllAvailableOutput(reader, 300);
                 logger.info("Step 13 - Logout output: [{}]", logoutOutput);
 
                 writer.write("3\n"); // Exit
