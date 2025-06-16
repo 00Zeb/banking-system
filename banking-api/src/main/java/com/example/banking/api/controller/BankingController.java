@@ -92,12 +92,12 @@ public class BankingController {
         boolean success = bankingService.deposit(request.getUsername(), request.getPassword(), request.getAmount());
 
         if (success) {
-            BankingUser user = bankingService.getAuthenticatedUser(request.getUsername(), request.getPassword());
+            Double balance = bankingService.getBalance(request.getUsername(), request.getPassword());
             TransactionResponse response = new TransactionResponse(
                     "Deposit",
                     request.getAmount(),
                     java.time.LocalDateTime.now(),
-                    user != null ? user.getBalance() : 0.0
+                    balance != null ? balance : 0.0
             );
             return ResponseEntity.ok(response);
         } else {
@@ -116,12 +116,12 @@ public class BankingController {
         boolean success = bankingService.withdraw(request.getUsername(), request.getPassword(), request.getAmount());
 
         if (success) {
-            BankingUser user = bankingService.getAuthenticatedUser(request.getUsername(), request.getPassword());
+            Double balance = bankingService.getBalance(request.getUsername(), request.getPassword());
             TransactionResponse response = new TransactionResponse(
                     "Withdrawal",
                     request.getAmount(),
                     java.time.LocalDateTime.now(),
-                    user != null ? user.getBalance() : 0.0
+                    balance != null ? balance : 0.0
             );
             return ResponseEntity.ok(response);
         } else {

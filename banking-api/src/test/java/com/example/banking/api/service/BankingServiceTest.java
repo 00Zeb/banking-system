@@ -116,12 +116,17 @@ class BankingServiceTest {
 
         @BeforeEach
         void setUpUser() {
+            when(processService.registerUser("testuser", "password123")).thenReturn(true);
             bankingService.registerUser("testuser", "password123");
         }
 
         @Test
         @DisplayName("Should process deposit successfully")
         void shouldProcessDepositSuccessfully() {
+            // Given
+            when(processService.deposit("testuser", "password123", 100.0)).thenReturn(true);
+            when(processService.getBalance("testuser", "password123")).thenReturn(100.0);
+
             // When
             boolean result = bankingService.deposit("testuser", "password123", 100.0);
 
@@ -134,6 +139,9 @@ class BankingServiceTest {
         @Test
         @DisplayName("Should fail deposit with invalid credentials")
         void shouldFailDepositWithInvalidCredentials() {
+            // Given
+            when(processService.deposit("testuser", "wrongpassword", 100.0)).thenReturn(false);
+
             // When
             boolean result = bankingService.deposit("testuser", "wrongpassword", 100.0);
 
@@ -149,12 +157,18 @@ class BankingServiceTest {
 
             // Then
             assertThat(result).isFalse();
+            // Verify that processService.deposit was never called due to validation
+            verify(processService, never()).deposit("testuser", "password123", -50.0);
         }
 
         @Test
         @DisplayName("Should process withdrawal successfully")
         void shouldProcessWithdrawalSuccessfully() {
             // Given
+            when(processService.deposit("testuser", "password123", 100.0)).thenReturn(true);
+            when(processService.withdraw("testuser", "password123", 50.0)).thenReturn(true);
+            when(processService.getBalance("testuser", "password123")).thenReturn(50.0);
+
             bankingService.deposit("testuser", "password123", 100.0);
 
             // When
@@ -170,6 +184,10 @@ class BankingServiceTest {
         @DisplayName("Should fail withdrawal with insufficient funds")
         void shouldFailWithdrawalWithInsufficientFunds() {
             // Given
+            when(processService.deposit("testuser", "password123", 50.0)).thenReturn(true);
+            when(processService.withdraw("testuser", "password123", 100.0)).thenReturn(false);
+            when(processService.getBalance("testuser", "password123")).thenReturn(50.0);
+
             bankingService.deposit("testuser", "password123", 50.0);
 
             // When
@@ -185,6 +203,9 @@ class BankingServiceTest {
         @DisplayName("Should fail withdrawal with invalid credentials")
         void shouldFailWithdrawalWithInvalidCredentials() {
             // Given
+            when(processService.deposit("testuser", "password123", 100.0)).thenReturn(true);
+            when(processService.withdraw("testuser", "wrongpassword", 50.0)).thenReturn(false);
+
             bankingService.deposit("testuser", "password123", 100.0);
 
             // When
@@ -203,6 +224,10 @@ class BankingServiceTest {
         @DisplayName("Should get balance for authenticated user")
         void shouldGetBalanceForAuthenticatedUser() {
             // Given
+            when(processService.registerUser("testuser", "password123")).thenReturn(true);
+            when(processService.deposit("testuser", "password123", 150.0)).thenReturn(true);
+            when(processService.getBalance("testuser", "password123")).thenReturn(150.0);
+
             bankingService.registerUser("testuser", "password123");
             bankingService.deposit("testuser", "password123", 150.0);
 
@@ -217,6 +242,9 @@ class BankingServiceTest {
         @DisplayName("Should return null for invalid credentials")
         void shouldReturnNullForInvalidCredentials() {
             // Given
+            when(processService.registerUser("testuser", "password123")).thenReturn(true);
+            when(processService.getBalance("testuser", "wrongpassword")).thenReturn(null);
+
             bankingService.registerUser("testuser", "password123");
 
             // When
@@ -235,6 +263,16 @@ class BankingServiceTest {
         @DisplayName("Should get transaction history for authenticated user")
         void shouldGetTransactionHistoryForAuthenticatedUser() {
             // Given
+            List<BankingTransaction> mockTransactions = Arrays.asList(
+                new BankingTransaction("Deposit", 100.0, LocalDateTime.now()),
+                new BankingTransaction("Withdrawal", 30.0, LocalDateTime.now())
+            );
+
+            when(processService.registerUser("testuser", "password123")).thenReturn(true);
+            when(processService.deposit("testuser", "password123", 100.0)).thenReturn(true);
+            when(processService.withdraw("testuser", "password123", 30.0)).thenReturn(true);
+            when(processService.getTransactions("testuser", "password123")).thenReturn(mockTransactions);
+
             bankingService.registerUser("testuser", "password123");
             bankingService.deposit("testuser", "password123", 100.0);
             bankingService.withdraw("testuser", "password123", 30.0);
@@ -253,6 +291,9 @@ class BankingServiceTest {
         @DisplayName("Should return null for invalid credentials")
         void shouldReturnNullForInvalidCredentials() {
             // Given
+            when(processService.registerUser("testuser", "password123")).thenReturn(true);
+            when(processService.getTransactions("testuser", "wrongpassword")).thenReturn(null);
+
             bankingService.registerUser("testuser", "password123");
 
             // When
@@ -271,6 +312,11 @@ class BankingServiceTest {
         @DisplayName("Should delete user successfully")
         void shouldDeleteUserSuccessfully() {
             // Given
+            BankingUser mockUser = new BankingUser("testuser", 0.0);
+            when(processService.registerUser("testuser", "password123")).thenReturn(true);
+            when(processService.deleteUser("testuser", "password123")).thenReturn(true);
+            when(processService.authenticateUser("testuser", "password123")).thenReturn(null);
+
             bankingService.registerUser("testuser", "password123");
 
             // When
@@ -286,6 +332,11 @@ class BankingServiceTest {
         @DisplayName("Should fail to delete user with invalid credentials")
         void shouldFailToDeleteUserWithInvalidCredentials() {
             // Given
+            BankingUser mockUser = new BankingUser("testuser", 0.0);
+            when(processService.registerUser("testuser", "password123")).thenReturn(true);
+            when(processService.deleteUser("testuser", "wrongpassword")).thenReturn(false);
+            when(processService.authenticateUser("testuser", "password123")).thenReturn(mockUser);
+
             bankingService.registerUser("testuser", "password123");
 
             // When
