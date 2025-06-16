@@ -7,13 +7,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import jakarta.annotation.PreDestroy;
 
 import java.io.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -45,6 +46,7 @@ public class BankingProcessService {
     }
 
     private Process process;
+    private final ExecutorService executorService = Executors.newCachedThreadPool();
     
     /**
      * Register a new user by interacting with the banking application process.
@@ -199,45 +201,67 @@ public class BankingProcessService {
     }
 
     /**
-     * Read all available output within a time limit.
+     * Read all available output within a time limit using optimized asynchronous I/O.
+     * This replaces the slow Thread.sleep() approach with efficient polling and smart delays.
      */
     private String readAllAvailableOutput(BufferedReader reader, long timeoutMs) throws IOException {
-        StringBuilder output = new StringBuilder();
-
-        // Wait for initial output
         try {
-            Thread.sleep(1000); // Give process time to start and produce output
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+            CompletableFuture<String> readFuture = CompletableFuture.supplyAsync(() -> {
+                StringBuilder output = new StringBuilder();
+                try {
+                    long startTime = System.currentTimeMillis();
+                    boolean hasData = false;
+                    int consecutiveEmptyReads = 0;
 
-        // Read all available output using character-by-character reading (like the working test)
-        while (reader.ready()) {
-            int ch = reader.read();
-            if (ch != -1) {
-                output.append((char) ch);
-            }
-        }
+                    // Initial small delay to let process start
+                    Thread.sleep(100);
 
-        // If we didn't get anything, wait a bit more and try again
-        if (output.length() == 0) {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
+                    while (System.currentTimeMillis() - startTime < timeoutMs) {
+                        // Check if data is available
+                        if (reader.ready()) {
+                            hasData = true;
+                            consecutiveEmptyReads = 0;
 
-            while (reader.ready()) {
-                int ch = reader.read();
-                if (ch != -1) {
-                    output.append((char) ch);
+                            // Read all available characters
+                            while (reader.ready()) {
+                                int ch = reader.read();
+                                if (ch != -1) {
+                                    output.append((char) ch);
+                                }
+                            }
+
+                            // Small delay to allow more data to arrive
+                            Thread.sleep(25);
+                        } else {
+                            consecutiveEmptyReads++;
+
+                            // If we had data before and now there's none, we might be done
+                            if (hasData && consecutiveEmptyReads > 3) {
+                                break;
+                            }
+
+                            // Adaptive delay - start small and increase slightly
+                            long delay = Math.min(50, 10 + consecutiveEmptyReads * 5);
+                            Thread.sleep(delay);
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.debug("Error reading process output: {}", e.getMessage());
                 }
-            }
-        }
+                return output.toString();
+            }, executorService);
 
-        String result = output.toString();
-        logger.debug("Raw output: [{}]", result);
-        return result; // Don't clean the output, work with raw text
+            String result = readFuture.get(timeoutMs + 500, TimeUnit.MILLISECONDS);
+            logger.debug("Raw output: [{}]", result);
+            return result;
+
+        } catch (TimeoutException e) {
+            logger.debug("Timeout reading process output after {}ms", timeoutMs);
+            return "";
+        } catch (Exception e) {
+            logger.debug("Error reading process output: {}", e.getMessage());
+            return "";
+        }
     }
 
     /**
@@ -336,88 +360,81 @@ public class BankingProcessService {
     }
     
     /**
-     * Read all available output from the process with improved timing.
+     * Read all available output from the process using asynchronous I/O.
+     * This replaces the slow polling approach with efficient event-driven reading.
      */
     private String readProcessOutput(BufferedReader reader) throws IOException {
-        StringBuilder output = new StringBuilder();
-        String line;
-
-        // Give process more time to generate output and try multiple times
-        int attempts = 0;
-        int maxAttempts = 10;
-
-        while (attempts < maxAttempts) {
-            try {
-                Thread.sleep(500); // Wait 500ms between attempts
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-
-            // Read all available lines
-            boolean foundNewContent = false;
-            while (reader.ready() && (line = reader.readLine()) != null) {
-                output.append(line).append("\n");
-                foundNewContent = true;
-            }
-
-            // If we found content, wait a bit more for any additional output
-            if (foundNewContent) {
-                try {
-                    Thread.sleep(200);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-
-                // Read any additional lines that might have appeared
-                while (reader.ready() && (line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
-                }
-                break; // We got output, so we're done
-            }
-
-            attempts++;
-        }
-
-        String result = cleanOutput(output.toString());
+        // Use the fast async method with a reasonable timeout
+        String rawOutput = readAllAvailableOutput(reader, 2000);
+        String result = cleanOutput(rawOutput);
         logger.debug("Process output (cleaned): {}", result);
         return result;
     }
 
     /**
-     * Wait for a specific prompt or text to appear in the output.
+     * Wait for a specific prompt or text to appear in the output using optimized asynchronous I/O.
+     * This replaces the slow polling approach with efficient reading and smart delays.
      */
     private String waitForPrompt(BufferedReader reader, String expectedPrompt) throws IOException {
-        StringBuilder output = new StringBuilder();
-        String line;
+        try {
+            CompletableFuture<String> promptFuture = CompletableFuture.supplyAsync(() -> {
+                try {
+                    StringBuilder output = new StringBuilder();
+                    long startTime = System.currentTimeMillis();
+                    long maxWaitTime = 3000; // 3 seconds max
+                    int consecutiveEmptyReads = 0;
 
-        int attempts = 0;
-        int maxAttempts = 20; // Wait up to 10 seconds (20 * 500ms)
+                    // Initial small delay
+                    Thread.sleep(50);
 
-        while (attempts < maxAttempts) {
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
+                    while (System.currentTimeMillis() - startTime < maxWaitTime) {
+                        if (reader.ready()) {
+                            consecutiveEmptyReads = 0;
 
-            while (reader.ready() && (line = reader.readLine()) != null) {
-                output.append(line).append("\n");
-                String cleanedOutput = cleanOutput(output.toString());
-                if (cleanedOutput.contains(expectedPrompt)) {
-                    logger.debug("Found expected prompt: {}", expectedPrompt);
+                            // Read all available characters
+                            while (reader.ready()) {
+                                int ch = reader.read();
+                                if (ch != -1) {
+                                    output.append((char) ch);
+                                }
+                            }
+
+                            String cleanedOutput = cleanOutput(output.toString());
+                            if (cleanedOutput.contains(expectedPrompt)) {
+                                logger.debug("Found expected prompt: {}", expectedPrompt);
+                                return cleanedOutput;
+                            }
+
+                            // Small delay after reading
+                            Thread.sleep(25);
+                        } else {
+                            consecutiveEmptyReads++;
+
+                            // Adaptive delay
+                            long delay = Math.min(100, 25 + consecutiveEmptyReads * 10);
+                            Thread.sleep(delay);
+                        }
+                    }
+
+                    String cleanedOutput = cleanOutput(output.toString());
+                    logger.debug("Timeout waiting for prompt: {}, got output: {}", expectedPrompt, cleanedOutput);
                     return cleanedOutput;
+
+                } catch (Exception e) {
+                    logger.debug("Error waiting for prompt: {}", e.getMessage());
+                    return "";
                 }
-            }
+            }, executorService);
 
-            attempts++;
+            return promptFuture.get(4, TimeUnit.SECONDS);
+
+        } catch (TimeoutException e) {
+            logger.debug("Timeout waiting for prompt: {}", expectedPrompt);
+            return "";
+        } catch (Exception e) {
+            logger.debug("Error waiting for prompt: {}", e.getMessage());
+            return "";
         }
-
-        String cleanedOutput = cleanOutput(output.toString());
-        logger.debug("Timeout waiting for prompt: {}, got output: {}", expectedPrompt, cleanedOutput);
-        return cleanedOutput;
     }
     
     /**
@@ -948,5 +965,29 @@ public class BankingProcessService {
         // For now, we'll return false to indicate this operation is not supported
         logger.warn("Delete user operation is not supported by the banking application CLI");
         return false;
+    }
+
+    /**
+     * Cleanup resources when the service is destroyed.
+     */
+    @PreDestroy
+    public void cleanup() {
+        if (executorService != null && !executorService.isShutdown()) {
+            logger.info("Shutting down executor service...");
+            executorService.shutdown();
+            try {
+                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                    executorService.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executorService.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        if (process != null && process.isAlive()) {
+            logger.info("Terminating banking process...");
+            process.destroyForcibly();
+        }
     }
 }
