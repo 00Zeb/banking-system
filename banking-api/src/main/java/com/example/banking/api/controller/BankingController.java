@@ -46,15 +46,15 @@ public class BankingController {
     }
 
     @PostMapping("/register")
-    @Operation(summary = "Register a new user", description = "Creates a new user account with username and password")
+    @Operation(summary = "Register new user", description = "Creates a new user account with the provided credentials")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "201", description = "User registered successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid input or username already exists"),
+        @ApiResponse(responseCode = "400", description = "Invalid input data"),
         @ApiResponse(responseCode = "409", description = "Username already exists")
     })
-    public ResponseEntity<com.example.banking.api.dto.ApiResponse> registerUser(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<com.example.banking.api.dto.ApiResponse> register(@Valid @RequestBody RegisterRequest request) {
         boolean success = bankingService.registerUser(request.getUsername(), request.getPassword());
-        
+
         if (success) {
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(com.example.banking.api.dto.ApiResponse.success("User registered successfully"));
@@ -82,7 +82,7 @@ public class BankingController {
     }
 
     @PostMapping("/deposit")
-    @Operation(summary = "Deposit money", description = "Deposits money into the user's account")
+    @Operation(summary = "Deposit money", description = "Deposits the specified amount to the user's account")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Deposit successful"),
         @ApiResponse(responseCode = "401", description = "Invalid credentials"),
@@ -106,11 +106,11 @@ public class BankingController {
     }
 
     @PostMapping("/withdraw")
-    @Operation(summary = "Withdraw money", description = "Withdraws money from the user's account")
+    @Operation(summary = "Withdraw money", description = "Withdraws the specified amount from the user's account")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Withdrawal successful"),
         @ApiResponse(responseCode = "401", description = "Invalid credentials"),
-        @ApiResponse(responseCode = "400", description = "Invalid amount or insufficient funds")
+        @ApiResponse(responseCode = "400", description = "Insufficient funds or invalid amount")
     })
     public ResponseEntity<TransactionResponse> withdraw(@Valid @RequestBody TransactionRequest request) {
         boolean success = bankingService.withdraw(request.getUsername(), request.getPassword(), request.getAmount());
@@ -165,15 +165,15 @@ public class BankingController {
         }
     }
 
-    @DeleteMapping("/account")
-    @Operation(summary = "Delete user account", description = "Deletes the user account permanently")
+    @DeleteMapping("/user")
+    @Operation(summary = "Delete user account", description = "Deletes the user account and all associated data")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Account deleted successfully"),
         @ApiResponse(responseCode = "401", description = "Invalid credentials")
     })
-    public ResponseEntity<com.example.banking.api.dto.ApiResponse> deleteAccount(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<com.example.banking.api.dto.ApiResponse> deleteUser(@Valid @RequestBody LoginRequest request) {
         boolean success = bankingService.deleteUser(request.getUsername(), request.getPassword());
-        
+
         if (success) {
             return ResponseEntity.ok(com.example.banking.api.dto.ApiResponse.success("Account deleted successfully"));
         } else {
