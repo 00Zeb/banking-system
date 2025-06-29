@@ -1,4 +1,4 @@
-package com.example.banking.api.model;
+package com.example.banking.api.domain;
 
 import java.util.List;
 
@@ -10,7 +10,7 @@ public class BankingUser {
     
     private String username;
     private double balance;
-    private List<BankingTransaction> transactions;
+    private List<com.example.banking.api.domain.BankingTransaction> transactions;
     
     public BankingUser() {}
     

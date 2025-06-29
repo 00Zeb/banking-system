@@ -1,7 +1,9 @@
-package com.example.banking.api.service;
+package com.example.banking.api.adapter.out;
 
 import com.example.banking.api.config.BankingApplicationProperties;
-import com.example.banking.api.model.BankingUser;
+import com.example.banking.api.domain.BankingUser;
+import com.example.banking.api.service.BankingProcessService;
+import com.example.banking.api.service.JarLocatorService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;

@@ -1,9 +1,9 @@
-package com.example.banking.api.controller;
+package com.example.banking.api.adapter.in;
 
 import com.example.banking.api.dto.*;
-import com.example.banking.api.model.BankingTransaction;
-import com.example.banking.api.model.BankingUser;
-import com.example.banking.api.service.BankingService;
+import com.example.banking.api.application.port.in.UserAccountUseCase;
+import com.example.banking.api.domain.BankingTransaction;
+import com.example.banking.api.domain.BankingUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -27,11 +27,11 @@ import java.util.stream.Collectors;
 @Tag(name = "Banking API", description = "REST API for banking operations")
 public class BankingController {
 
-    private final BankingService bankingService;
+    private final UserAccountUseCase userAccountUseCase;
 
     @Autowired
-    public BankingController(BankingService bankingService) {
-        this.bankingService = bankingService;
+    public BankingController(UserAccountUseCase userAccountUseCase) {
+        this.userAccountUseCase = userAccountUseCase;
     }
 
     @RequestMapping(method = RequestMethod.OPTIONS)
@@ -53,7 +53,7 @@ public class BankingController {
         @ApiResponse(responseCode = "409", description = "Username already exists")
     })
     public ResponseEntity<com.example.banking.api.dto.ApiResponse> registerUser(@Valid @RequestBody RegisterRequest request) {
-        boolean success = bankingService.registerUser(request.getUsername(), request.getPassword());
+        boolean success = userAccountUseCase.registerUser(request.getUsername(), request.getPassword());
         
         if (success) {
             return ResponseEntity.status(HttpStatus.CREATED)
@@ -71,7 +71,7 @@ public class BankingController {
         @ApiResponse(responseCode = "401", description = "Invalid credentials")
     })
     public ResponseEntity<UserResponse> login(@Valid @RequestBody LoginRequest request) {
-        BankingUser user = bankingService.authenticateUser(request.getUsername(), request.getPassword());
+        BankingUser user = userAccountUseCase.authenticateUser(request.getUsername(), request.getPassword());
 
         if (user != null) {
             UserResponse response = new UserResponse(user.getUsername(), user.getBalance());
@@ -89,10 +89,10 @@ public class BankingController {
         @ApiResponse(responseCode = "400", description = "Invalid amount")
     })
     public ResponseEntity<TransactionResponse> deposit(@Valid @RequestBody TransactionRequest request) {
-        boolean success = bankingService.deposit(request.getUsername(), request.getPassword(), request.getAmount());
+        boolean success = userAccountUseCase.deposit(request.getUsername(), request.getPassword(), request.getAmount());
 
         if (success) {
-            Double balance = bankingService.getBalance(request.getUsername(), request.getPassword());
+            Double balance = userAccountUseCase.getBalance(request.getUsername(), request.getPassword());
             TransactionResponse response = new TransactionResponse(
                     "Deposit",
                     request.getAmount(),
@@ -113,10 +113,10 @@ public class BankingController {
         @ApiResponse(responseCode = "400", description = "Invalid amount or insufficient funds")
     })
     public ResponseEntity<TransactionResponse> withdraw(@Valid @RequestBody TransactionRequest request) {
-        boolean success = bankingService.withdraw(request.getUsername(), request.getPassword(), request.getAmount());
+        boolean success = userAccountUseCase.withdraw(request.getUsername(), request.getPassword(), request.getAmount());
 
         if (success) {
-            Double balance = bankingService.getBalance(request.getUsername(), request.getPassword());
+            Double balance = userAccountUseCase.getBalance(request.getUsername(), request.getPassword());
             TransactionResponse response = new TransactionResponse(
                     "Withdrawal",
                     request.getAmount(),
@@ -136,7 +136,7 @@ public class BankingController {
         @ApiResponse(responseCode = "401", description = "Invalid credentials")
     })
     public ResponseEntity<UserResponse> getBalance(@Valid @RequestBody LoginRequest request) {
-        Double balance = bankingService.getBalance(request.getUsername(), request.getPassword());
+        Double balance = userAccountUseCase.getBalance(request.getUsername(), request.getPassword());
         
         if (balance != null) {
             UserResponse response = new UserResponse(request.getUsername(), balance);
@@ -153,7 +153,7 @@ public class BankingController {
         @ApiResponse(responseCode = "401", description = "Invalid credentials")
     })
     public ResponseEntity<List<TransactionResponse>> getTransactions(@Valid @RequestBody LoginRequest request) {
-        List<BankingTransaction> transactions = bankingService.getTransactions(request.getUsername(), request.getPassword());
+        List<BankingTransaction> transactions = userAccountUseCase.getTransactions(request.getUsername(), request.getPassword());
 
         if (transactions != null) {
             List<TransactionResponse> response = transactions.stream()
@@ -172,7 +172,7 @@ public class BankingController {
         @ApiResponse(responseCode = "401", description = "Invalid credentials")
     })
     public ResponseEntity<com.example.banking.api.dto.ApiResponse> deleteAccount(@Valid @RequestBody LoginRequest request) {
-        boolean success = bankingService.deleteUser(request.getUsername(), request.getPassword());
+        boolean success = userAccountUseCase.deleteUser(request.getUsername(), request.getPassword());
         
         if (success) {
             return ResponseEntity.ok(com.example.banking.api.dto.ApiResponse.success("Account deleted successfully"));

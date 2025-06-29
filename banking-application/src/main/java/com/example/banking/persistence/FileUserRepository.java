@@ -14,11 +14,16 @@ import java.util.Map;
  * File-based implementation of UserRepository.
  * Stores users and their transactions in a serialized file.
  */
-public class FileUserRepository implements UserRepository {
-    private static final String DATA_FILE = "banking_data.ser";
+public class FileUserRepository implements UserRepository, AutoCloseable {
+    private final String dataFile;
     private Map<String, User> userCache;
 
     public FileUserRepository() {
+        this("banking_data.ser");
+    }
+
+    public FileUserRepository(String dataFile) {
+        this.dataFile = dataFile;
         this.userCache = new HashMap<>();
         loadData();
     }
@@ -67,7 +72,7 @@ public class FileUserRepository implements UserRepository {
      */
     @SuppressWarnings("unchecked")
     private void loadData() {
-        File file = new File(DATA_FILE);
+        File file = new File(dataFile);
         if (file.exists()) {
             try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
                 userCache = (Map<String, User>) ois.readObject();
@@ -83,11 +88,15 @@ public class FileUserRepository implements UserRepository {
      * Saves user data to file.
      */
     private void saveData() {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(DATA_FILE))) {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(dataFile))) {
             oos.writeObject(userCache);
             System.out.println("Saved " + userCache.size() + " users to storage.");
         } catch (IOException e) {
             System.err.println("Error saving user data: " + e.getMessage());
         }
+    }
+    @Override
+    public void close() throws IOException {
+        // No-op
     }
 }

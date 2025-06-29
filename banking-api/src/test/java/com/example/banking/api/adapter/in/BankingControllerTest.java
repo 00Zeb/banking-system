@@ -1,11 +1,10 @@
-package com.example.banking.api.controller;
+package com.example.banking.api.adapter.in;
 
 import com.example.banking.api.dto.LoginRequest;
 import com.example.banking.api.dto.RegisterRequest;
 import com.example.banking.api.dto.TransactionRequest;
-import com.example.banking.api.service.BankingService;
-import com.example.banking.api.model.BankingUser;
-import com.example.banking.api.model.BankingTransaction;
+import com.example.banking.api.application.port.in.UserAccountUseCase;
+import com.example.banking.api.domain.BankingUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,7 +22,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(BankingController.class)
+@WebMvcTest(com.example.banking.api.adapter.in.BankingController.class)
 @DisplayName("Banking Controller Tests")
 class BankingControllerTest {
 
@@ -31,7 +30,7 @@ class BankingControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private BankingService bankingService;
+    private UserAccountUseCase userAccountUseCase;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -52,7 +51,7 @@ class BankingControllerTest {
         void shouldRegisterUserSuccessfully() throws Exception {
             // Given
             RegisterRequest request = new RegisterRequest("newuser", "password123");
-            when(bankingService.registerUser("newuser", "password123")).thenReturn(true);
+            when(userAccountUseCase.registerUser("newuser", "password123")).thenReturn(true);
 
             // When & Then
             mockMvc.perform(post("/api/v1/banking/register")
@@ -62,7 +61,7 @@ class BankingControllerTest {
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.message").value("User registered successfully"));
 
-            verify(bankingService).registerUser("newuser", "password123");
+            verify(userAccountUseCase).registerUser("newuser", "password123");
         }
 
         @Test
@@ -70,7 +69,7 @@ class BankingControllerTest {
         void shouldReturnConflictWhenUsernameExists() throws Exception {
             // Given
             RegisterRequest request = new RegisterRequest("existinguser", "password123");
-            when(bankingService.registerUser("existinguser", "password123")).thenReturn(false);
+            when(userAccountUseCase.registerUser("existinguser", "password123")).thenReturn(false);
 
             // When & Then
             mockMvc.perform(post("/api/v1/banking/register")
@@ -104,7 +103,7 @@ class BankingControllerTest {
         void shouldAuthenticateUserSuccessfully() throws Exception {
             // Given
             LoginRequest request = new LoginRequest("testuser", "password");
-            when(bankingService.authenticateUser("testuser", "password")).thenReturn(mockUser);
+            when(userAccountUseCase.authenticateUser("testuser", "password")).thenReturn(mockUser);
 
             // When & Then
             mockMvc.perform(post("/api/v1/banking/login")
@@ -113,7 +112,7 @@ class BankingControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.username").value("testuser"));
 
-            verify(bankingService).authenticateUser("testuser", "password");
+            verify(userAccountUseCase).authenticateUser("testuser", "password");
         }
 
         @Test
@@ -121,7 +120,7 @@ class BankingControllerTest {
         void shouldReturnUnauthorizedForInvalidCredentials() throws Exception {
             // Given
             LoginRequest request = new LoginRequest("testuser", "wrongpassword");
-            when(bankingService.authenticateUser("testuser", "wrongpassword")).thenReturn(null);
+            when(userAccountUseCase.authenticateUser("testuser", "wrongpassword")).thenReturn(null);
 
             // When & Then
             mockMvc.perform(post("/api/v1/banking/login")
@@ -140,8 +139,8 @@ class BankingControllerTest {
         void shouldProcessDepositSuccessfully() throws Exception {
             // Given
             TransactionRequest request = new TransactionRequest("testuser", "password", 100.0);
-            when(bankingService.deposit("testuser", "password", 100.0)).thenReturn(true);
-            when(bankingService.getAuthenticatedUser("testuser", "password")).thenReturn(mockUser);
+            when(userAccountUseCase.deposit("testuser", "password", 100.0)).thenReturn(true);
+            when(userAccountUseCase.getBalance("testuser", "password")).thenReturn(100.0);
 
             // When & Then
             mockMvc.perform(post("/api/v1/banking/deposit")
@@ -151,7 +150,7 @@ class BankingControllerTest {
                     .andExpect(jsonPath("$.type").value("Deposit"))
                     .andExpect(jsonPath("$.amount").value(100.0));
 
-            verify(bankingService).deposit("testuser", "password", 100.0);
+            verify(userAccountUseCase).deposit("testuser", "password", 100.0);
         }
 
         @Test
@@ -159,7 +158,7 @@ class BankingControllerTest {
         void shouldReturnUnauthorizedForInvalidCredentialsOnDeposit() throws Exception {
             // Given
             TransactionRequest request = new TransactionRequest("testuser", "wrongpassword", 100.0);
-            when(bankingService.deposit("testuser", "wrongpassword", 100.0)).thenReturn(false);
+            when(userAccountUseCase.deposit("testuser", "wrongpassword", 100.0)).thenReturn(false);
 
             // When & Then
             mockMvc.perform(post("/api/v1/banking/deposit")
@@ -173,8 +172,8 @@ class BankingControllerTest {
         void shouldProcessWithdrawalSuccessfully() throws Exception {
             // Given
             TransactionRequest request = new TransactionRequest("testuser", "password", 50.0);
-            when(bankingService.withdraw("testuser", "password", 50.0)).thenReturn(true);
-            when(bankingService.getAuthenticatedUser("testuser", "password")).thenReturn(mockUser);
+            when(userAccountUseCase.withdraw("testuser", "password", 50.0)).thenReturn(true);
+            when(userAccountUseCase.getBalance("testuser", "password")).thenReturn(50.0);
 
             // When & Then
             mockMvc.perform(post("/api/v1/banking/withdraw")
@@ -184,7 +183,7 @@ class BankingControllerTest {
                     .andExpect(jsonPath("$.type").value("Withdrawal"))
                     .andExpect(jsonPath("$.amount").value(50.0));
 
-            verify(bankingService).withdraw("testuser", "password", 50.0);
+            verify(userAccountUseCase).withdraw("testuser", "password", 50.0);
         }
 
         @Test
@@ -192,7 +191,7 @@ class BankingControllerTest {
         void shouldReturnBadRequestForInsufficientFunds() throws Exception {
             // Given
             TransactionRequest request = new TransactionRequest("testuser", "password", 1000.0);
-            when(bankingService.withdraw("testuser", "password", 1000.0)).thenReturn(false);
+            when(userAccountUseCase.withdraw("testuser", "password", 1000.0)).thenReturn(false);
 
             // When & Then
             mockMvc.perform(post("/api/v1/banking/withdraw")
@@ -211,7 +210,7 @@ class BankingControllerTest {
         void shouldGetBalanceSuccessfully() throws Exception {
             // Given
             LoginRequest request = new LoginRequest("testuser", "password");
-            when(bankingService.getBalance("testuser", "password")).thenReturn(150.0);
+            when(userAccountUseCase.getBalance("testuser", "password")).thenReturn(150.0);
 
             // When & Then
             mockMvc.perform(post("/api/v1/banking/balance")
@@ -221,7 +220,7 @@ class BankingControllerTest {
                     .andExpect(jsonPath("$.username").value("testuser"))
                     .andExpect(jsonPath("$.balance").value(150.0));
 
-            verify(bankingService).getBalance("testuser", "password");
+            verify(userAccountUseCase).getBalance("testuser", "password");
         }
 
         @Test
@@ -229,7 +228,7 @@ class BankingControllerTest {
         void shouldReturnUnauthorizedForInvalidCredentialsOnBalanceCheck() throws Exception {
             // Given
             LoginRequest request = new LoginRequest("testuser", "wrongpassword");
-            when(bankingService.getBalance("testuser", "wrongpassword")).thenReturn(null);
+            when(userAccountUseCase.getBalance("testuser", "wrongpassword")).thenReturn(null);
 
             // When & Then
             mockMvc.perform(post("/api/v1/banking/balance")

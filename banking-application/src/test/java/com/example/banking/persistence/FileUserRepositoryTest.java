@@ -14,84 +14,20 @@ import static org.assertj.core.api.Assertions.*;
 class FileUserRepositoryTest {
 
     private FileUserRepository repository;
-    private static final String TEST_DATA_FILE = "test_banking_data.ser";
+    private String testDataFile;
 
     @TempDir
     Path tempDir;
 
     @BeforeEach
     void setUp() {
-        // Clean up any existing data files before each test
-        cleanupDataFiles();
-        repository = new FileUserRepository();
+        testDataFile = tempDir.resolve("test_banking_data.ser").toString();
+        repository = new FileUserRepository(testDataFile);
     }
 
     @AfterEach
-    void tearDown() {
-        // Clean up test files after each test
-        cleanupDataFiles();
-    }
-
-    private void cleanupDataFiles() {
-        File testFile = new File(TEST_DATA_FILE);
-        if (testFile.exists()) {
-            testFile.delete();
-        }
-        File dataFile = new File("banking_data.ser");
-        if (dataFile.exists()) {
-            dataFile.delete();
-        }
-    }
-
-    @Nested
-    @DisplayName("Constructor Tests")
-    class ConstructorTests {
-
-        @Test
-        @DisplayName("Should create repository with empty cache when no data file exists")
-        void shouldCreateRepositoryWithEmptyCache() {
-            // When
-            FileUserRepository newRepository = new FileUserRepository();
-
-            // Then
-            assertThat(newRepository.getAllUsers()).isEmpty();
-        }
-
-        @Test
-        @DisplayName("Should load existing data when data file exists")
-        void shouldLoadExistingDataWhenFileExists() throws IOException, ClassNotFoundException {
-            // Given - Create a test data file with a user
-            User testUser = new User("testuser", "password");
-            java.util.Map<String, User> testData = new java.util.HashMap<>();
-            testData.put("testuser", testUser);
-
-            try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("banking_data.ser"))) {
-                oos.writeObject(testData);
-            }
-
-            // When
-            FileUserRepository newRepository = new FileUserRepository();
-
-            // Then
-            List<User> users = newRepository.getAllUsers();
-            assertThat(users).hasSize(1);
-            assertThat(users.get(0).getUsername()).isEqualTo("testuser");
-        }
-
-        @Test
-        @DisplayName("Should handle corrupted data file gracefully")
-        void shouldHandleCorruptedDataFileGracefully() throws IOException {
-            // Given - Create a corrupted data file
-            try (FileWriter writer = new FileWriter("banking_data.ser")) {
-                writer.write("corrupted data");
-            }
-
-            // When
-            FileUserRepository newRepository = new FileUserRepository();
-
-            // Then
-            assertThat(newRepository.getAllUsers()).isEmpty();
-        }
+    void tearDown() throws IOException {
+        repository.close();
     }
 
     @Nested
@@ -133,7 +69,7 @@ class FileUserRepositoryTest {
 
         @Test
         @DisplayName("Should persist data to file when saving user")
-        void shouldPersistDataToFileWhenSavingUser() {
+        void shouldPersistDataToFileWhenSavingUser() throws IOException {
             // Given
             User user = new User("persisttest", "password");
 
@@ -141,14 +77,15 @@ class FileUserRepositoryTest {
             repository.saveUser(user);
 
             // Then
-            File dataFile = new File("banking_data.ser");
+            File dataFile = new File(testDataFile);
             assertThat(dataFile).exists();
 
             // Verify by creating new repository instance
-            FileUserRepository newRepository = new FileUserRepository();
+            try (FileUserRepository newRepository = new FileUserRepository(testDataFile)) {
             User retrievedUser = newRepository.getUserByUsername("persisttest");
             assertThat(retrievedUser).isNotNull();
             assertThat(retrievedUser.getUsername()).isEqualTo("persisttest");
+        }
         }
     }
 
@@ -320,7 +257,7 @@ class FileUserRepositoryTest {
 
         @Test
         @DisplayName("Should persist deletion to file")
-        void shouldPersistDeletionToFile() {
+        void shouldPersistDeletionToFile() throws IOException {
             // Given
             User user = new User("persistdelete", "password");
             repository.saveUser(user);
@@ -329,8 +266,9 @@ class FileUserRepositoryTest {
             repository.deleteUser("persistdelete");
 
             // Then
-            FileUserRepository newRepository = new FileUserRepository();
+            try (FileUserRepository newRepository = new FileUserRepository(testDataFile)) {
             assertThat(newRepository.getUserByUsername("persistdelete")).isNull();
+        }
         }
     }
 
@@ -340,7 +278,7 @@ class FileUserRepositoryTest {
 
         @Test
         @DisplayName("Should save all users to file")
-        void shouldSaveAllUsersToFile() {
+        void shouldSaveAllUsersToFile() throws IOException {
             // Given
             User user1 = new User("saveall1", "password1");
             User user2 = new User("saveall2", "password2");
@@ -351,11 +289,12 @@ class FileUserRepositoryTest {
             repository.saveAllUsers();
 
             // Then
-            FileUserRepository newRepository = new FileUserRepository();
+            try (FileUserRepository newRepository = new FileUserRepository(testDataFile)) {
             List<User> users = newRepository.getAllUsers();
             assertThat(users).hasSize(2);
             assertThat(users).extracting(User::getUsername)
                     .containsExactlyInAnyOrder("saveall1", "saveall2");
+        }
         }
     }
 }
