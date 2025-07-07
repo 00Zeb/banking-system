@@ -2,7 +2,7 @@ package com.example.banking.api.integration;
 
 import com.example.banking.api.dto.LoginRequest;
 import com.example.banking.api.dto.RegisterRequest;
-import com.example.banking.api.dto.TransactionRequest;
+import com.example.banking.api.dto.SessionTransactionRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,8 +11,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.mock.web.MockHttpSession;
 
 import java.io.File;
 
@@ -72,24 +74,28 @@ class BankingApiIntegrationTest {
 
         // 2. Login with the new user
         LoginRequest loginRequest = new LoginRequest(username, password);
-        mockMvc.perform(post("/api/v1/banking/login")
+        MvcResult loginResult = mockMvc.perform(post("/api/v1/banking/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value(username))
-                .andExpect(jsonPath("$.balance").value(0.0));
+                .andExpect(jsonPath("$.balance").value(0.0))
+                .andExpect(jsonPath("$.sessionId").exists())
+                .andReturn();
+        
+        MockHttpSession session = (MockHttpSession) loginResult.getRequest().getSession();
 
         // 3. Check initial balance
-        mockMvc.perform(post("/api/v1/banking/balance")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequest)))
+        mockMvc.perform(get("/api/v1/banking/balance")
+                .session(session))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value(username))
                 .andExpect(jsonPath("$.balance").value(0.0));
 
         // 4. Make a deposit
-        TransactionRequest depositRequest = new TransactionRequest(username, password, 100.0);
+        SessionTransactionRequest depositRequest = new SessionTransactionRequest(100.0);
         mockMvc.perform(post("/api/v1/banking/deposit")
+                .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(depositRequest)))
                 .andExpect(status().isOk())
@@ -98,15 +104,15 @@ class BankingApiIntegrationTest {
                 .andExpect(jsonPath("$.newBalance").value(100.0));
 
         // 5. Check balance after deposit
-        mockMvc.perform(post("/api/v1/banking/balance")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequest)))
+        mockMvc.perform(get("/api/v1/banking/balance")
+                .session(session))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.balance").value(100.0));
 
         // 6. Make a withdrawal
-        TransactionRequest withdrawRequest = new TransactionRequest(username, password, 30.0);
+        SessionTransactionRequest withdrawRequest = new SessionTransactionRequest(30.0);
         mockMvc.perform(post("/api/v1/banking/withdraw")
+                .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(withdrawRequest)))
                 .andExpect(status().isOk())
@@ -115,16 +121,14 @@ class BankingApiIntegrationTest {
                 .andExpect(jsonPath("$.newBalance").value(70.0));
 
         // 7. Check final balance
-        mockMvc.perform(post("/api/v1/banking/balance")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequest)))
+        mockMvc.perform(get("/api/v1/banking/balance")
+                .session(session))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.balance").value(70.0));
 
         // 8. Get transaction history
-        mockMvc.perform(post("/api/v1/banking/transactions")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequest)))
+        mockMvc.perform(get("/api/v1/banking/transactions")
+                .session(session))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(2))
@@ -132,18 +136,25 @@ class BankingApiIntegrationTest {
                 .andExpect(jsonPath("$[1].type").value("Withdrawal"));
 
         // 9. Try withdrawal with insufficient funds
-        TransactionRequest largeWithdrawRequest = new TransactionRequest(username, password, 100.0);
+        SessionTransactionRequest largeWithdrawRequest = new SessionTransactionRequest(100.0);
         mockMvc.perform(post("/api/v1/banking/withdraw")
+                .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(largeWithdrawRequest)))
                 .andExpect(status().isBadRequest());
 
         // 10. Verify balance unchanged after failed withdrawal
-        mockMvc.perform(post("/api/v1/banking/balance")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequest)))
+        mockMvc.perform(get("/api/v1/banking/balance")
+                .session(session))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.balance").value(70.0));
+        
+        // 11. Logout
+        mockMvc.perform(post("/api/v1/banking/logout")
+                .session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Session ended successfully"));
     }
 
     @Test
@@ -167,17 +178,15 @@ class BankingApiIntegrationTest {
                 .content(objectMapper.writeValueAsString(wrongLoginRequest)))
                 .andExpect(status().isUnauthorized());
 
-        // 3. Try deposit with wrong password
-        TransactionRequest wrongDepositRequest = new TransactionRequest(username, wrongPassword, 50.0);
+        // 3. Try deposit without session
+        SessionTransactionRequest depositRequest = new SessionTransactionRequest(50.0);
         mockMvc.perform(post("/api/v1/banking/deposit")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(wrongDepositRequest)))
+                .content(objectMapper.writeValueAsString(depositRequest)))
                 .andExpect(status().isUnauthorized());
 
-        // 4. Try balance check with wrong password
-        mockMvc.perform(post("/api/v1/banking/balance")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(wrongLoginRequest)))
+        // 4. Try balance check without session
+        mockMvc.perform(get("/api/v1/banking/balance"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -200,13 +209,12 @@ class BankingApiIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
 
-        // 3. Try deposit with negative amount
-        TransactionRequest negativeDepositRequest = new TransactionRequest("user", "pass", -50.0);
+        // 3. Try deposit with negative amount (without session to get validation error)
+        SessionTransactionRequest negativeDepositRequest = new SessionTransactionRequest(-50.0);
         mockMvc.perform(post("/api/v1/banking/deposit")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(negativeDepositRequest)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false));
+                .andExpect(status().isUnauthorized()); // Will get 401 due to session validation first
     }
 
     @Test

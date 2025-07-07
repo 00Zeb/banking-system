@@ -4,18 +4,26 @@ import com.example.banking.api.dto.*;
 import com.example.banking.api.model.BankingTransaction;
 import com.example.banking.api.model.BankingUser;
 import com.example.banking.api.service.BankingService;
+import com.example.banking.api.service.SessionBankingService;
+import com.example.banking.api.service.session.SessionManager;
+import com.example.banking.api.service.process.ProcessSessionManager;
+import com.example.banking.api.domain.model.UserSession;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
+import java.time.LocalDateTime;
 
 /**
  * REST Controller for Banking operations.
@@ -28,10 +36,16 @@ import java.util.stream.Collectors;
 public class BankingController {
 
     private final BankingService bankingService;
+    private final SessionBankingService sessionBankingService;
+    private final SessionManager sessionManager;
+    private final ProcessSessionManager processSessionManager;
 
     @Autowired
-    public BankingController(BankingService bankingService) {
+    public BankingController(BankingService bankingService, SessionBankingService sessionBankingService, SessionManager sessionManager, ProcessSessionManager processSessionManager) {
         this.bankingService = bankingService;
+        this.sessionBankingService = sessionBankingService;
+        this.sessionManager = sessionManager;
+        this.processSessionManager = processSessionManager;
     }
 
     @RequestMapping(method = RequestMethod.OPTIONS)
@@ -65,34 +79,90 @@ public class BankingController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Authenticate user", description = "Validates user credentials and returns user information")
+    @Operation(summary = "Authenticate user and create session", description = "Validates user credentials, creates a session, and returns user information with session details")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Authentication successful"),
+        @ApiResponse(responseCode = "200", description = "Authentication successful, session created"),
         @ApiResponse(responseCode = "401", description = "Invalid credentials")
     })
-    public ResponseEntity<UserResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<SessionResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+        // Authenticate user with banking service
         BankingUser user = bankingService.authenticateUser(request.getUsername(), request.getPassword());
 
         if (user != null) {
-            UserResponse response = new UserResponse(user.getUsername(), user.getBalance());
+            // Create HTTP session
+            HttpSession httpSession = httpRequest.getSession(true);
+            
+            // Create user session
+            UserSession userSession = sessionManager.createSession(user.getUsername(), httpSession);
+            
+            // Calculate session expiration
+            LocalDateTime expiresAt = userSession.getCreatedAt().plusSeconds(1800); // 30 minutes
+            
+            SessionResponse response = new SessionResponse(
+                user.getUsername(), 
+                user.getBalance(), 
+                userSession.getSessionId(),
+                userSession.getCreatedAt(),
+                expiresAt
+            );
+            
             return ResponseEntity.ok(response);
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
 
+    @PostMapping("/logout")
+    @Operation(summary = "End user session", description = "Terminates the current user session and associated process")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Session ended successfully"),
+        @ApiResponse(responseCode = "401", description = "No active session found")
+    })
+    public ResponseEntity<com.example.banking.api.dto.ApiResponse> logout(HttpServletRequest httpRequest) {
+        HttpSession httpSession = httpRequest.getSession(false);
+        if (httpSession == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(com.example.banking.api.dto.ApiResponse.error("No active session found"));
+        }
+        
+        Optional<UserSession> userSessionOpt = sessionManager.getSession(httpSession);
+        if (userSessionOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(com.example.banking.api.dto.ApiResponse.error("No valid session found"));
+        }
+        
+        UserSession userSession = userSessionOpt.get();
+        
+        // Terminate the session process
+        processSessionManager.terminateSessionProcess(userSession);
+        
+        // Remove session from session manager
+        sessionManager.invalidateSession(httpSession);
+        
+        // Invalidate HTTP session
+        httpSession.invalidate();
+        
+        return ResponseEntity.ok(com.example.banking.api.dto.ApiResponse.success("Session ended successfully"));
+    }
+
     @PostMapping("/deposit")
-    @Operation(summary = "Deposit money", description = "Deposits the specified amount to the user's account")
+    @Operation(summary = "Deposit money", description = "Deposits the specified amount to the user's account using session-based authentication")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Deposit successful"),
-        @ApiResponse(responseCode = "401", description = "Invalid credentials"),
+        @ApiResponse(responseCode = "401", description = "No valid session found"),
         @ApiResponse(responseCode = "400", description = "Invalid amount")
     })
-    public ResponseEntity<TransactionResponse> deposit(@Valid @RequestBody TransactionRequest request) {
-        boolean success = bankingService.deposit(request.getUsername(), request.getPassword(), request.getAmount());
+    public ResponseEntity<TransactionResponse> deposit(@Valid @RequestBody SessionTransactionRequest request, HttpServletRequest httpRequest) {
+        // Get user session from request attributes (set by SessionInterceptor)
+        UserSession userSession = (UserSession) httpRequest.getAttribute("userSession");
+        if (userSession == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        
+        boolean success = sessionBankingService.deposit(userSession, request.getAmount());
 
         if (success) {
-            Double balance = bankingService.getBalance(request.getUsername(), request.getPassword());
+            Double balance = sessionBankingService.getBalance(userSession);
             TransactionResponse response = new TransactionResponse(
                     "Deposit",
                     request.getAmount(),
@@ -101,22 +171,28 @@ public class BankingController {
             );
             return ResponseEntity.ok(response);
         } else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 
     @PostMapping("/withdraw")
-    @Operation(summary = "Withdraw money", description = "Withdraws the specified amount from the user's account")
+    @Operation(summary = "Withdraw money", description = "Withdraws the specified amount from the user's account using session-based authentication")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Withdrawal successful"),
-        @ApiResponse(responseCode = "401", description = "Invalid credentials"),
+        @ApiResponse(responseCode = "401", description = "No valid session found"),
         @ApiResponse(responseCode = "400", description = "Insufficient funds or invalid amount")
     })
-    public ResponseEntity<TransactionResponse> withdraw(@Valid @RequestBody TransactionRequest request) {
-        boolean success = bankingService.withdraw(request.getUsername(), request.getPassword(), request.getAmount());
+    public ResponseEntity<TransactionResponse> withdraw(@Valid @RequestBody SessionTransactionRequest request, HttpServletRequest httpRequest) {
+        // Get user session from request attributes (set by SessionInterceptor)
+        UserSession userSession = (UserSession) httpRequest.getAttribute("userSession");
+        if (userSession == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        
+        boolean success = sessionBankingService.withdraw(userSession, request.getAmount());
 
         if (success) {
-            Double balance = bankingService.getBalance(request.getUsername(), request.getPassword());
+            Double balance = sessionBankingService.getBalance(userSession);
             TransactionResponse response = new TransactionResponse(
                     "Withdrawal",
                     request.getAmount(),
@@ -129,31 +205,43 @@ public class BankingController {
         }
     }
 
-    @PostMapping("/balance")
-    @Operation(summary = "Get account balance", description = "Retrieves the current account balance for the user")
+    @GetMapping("/balance")
+    @Operation(summary = "Get account balance", description = "Retrieves the current account balance for the authenticated user")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Balance retrieved successfully"),
-        @ApiResponse(responseCode = "401", description = "Invalid credentials")
+        @ApiResponse(responseCode = "401", description = "No valid session found")
     })
-    public ResponseEntity<UserResponse> getBalance(@Valid @RequestBody LoginRequest request) {
-        Double balance = bankingService.getBalance(request.getUsername(), request.getPassword());
+    public ResponseEntity<UserResponse> getBalance(HttpServletRequest httpRequest) {
+        // Get user session from request attributes (set by SessionInterceptor)
+        UserSession userSession = (UserSession) httpRequest.getAttribute("userSession");
+        if (userSession == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        
+        Double balance = sessionBankingService.getBalance(userSession);
         
         if (balance != null) {
-            UserResponse response = new UserResponse(request.getUsername(), balance);
+            UserResponse response = new UserResponse(userSession.getUsername(), balance);
             return ResponseEntity.ok(response);
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
 
-    @PostMapping("/transactions")
-    @Operation(summary = "Get transaction history", description = "Retrieves the transaction history for the user")
+    @GetMapping("/transactions")
+    @Operation(summary = "Get transaction history", description = "Retrieves the transaction history for the authenticated user")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Transactions retrieved successfully"),
-        @ApiResponse(responseCode = "401", description = "Invalid credentials")
+        @ApiResponse(responseCode = "401", description = "No valid session found")
     })
-    public ResponseEntity<List<TransactionResponse>> getTransactions(@Valid @RequestBody LoginRequest request) {
-        List<BankingTransaction> transactions = bankingService.getTransactions(request.getUsername(), request.getPassword());
+    public ResponseEntity<List<TransactionResponse>> getTransactions(HttpServletRequest httpRequest) {
+        // Get user session from request attributes (set by SessionInterceptor)
+        UserSession userSession = (UserSession) httpRequest.getAttribute("userSession");
+        if (userSession == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        
+        List<BankingTransaction> transactions = sessionBankingService.getTransactions(userSession);
 
         if (transactions != null) {
             List<TransactionResponse> response = transactions.stream()
@@ -166,19 +254,35 @@ public class BankingController {
     }
 
     @DeleteMapping("/user")
-    @Operation(summary = "Delete user account", description = "Deletes the user account and all associated data")
+    @Operation(summary = "Delete user account", description = "Deletes the authenticated user account and all associated data")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Account deleted successfully"),
-        @ApiResponse(responseCode = "401", description = "Invalid credentials")
+        @ApiResponse(responseCode = "401", description = "No valid session found")
     })
-    public ResponseEntity<com.example.banking.api.dto.ApiResponse> deleteUser(@Valid @RequestBody LoginRequest request) {
-        boolean success = bankingService.deleteUser(request.getUsername(), request.getPassword());
+    public ResponseEntity<com.example.banking.api.dto.ApiResponse> deleteUser(HttpServletRequest httpRequest) {
+        // Get user session from request attributes (set by SessionInterceptor)
+        UserSession userSession = (UserSession) httpRequest.getAttribute("userSession");
+        if (userSession == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(com.example.banking.api.dto.ApiResponse.error("No valid session found"));
+        }
+        
+        boolean success = sessionBankingService.deleteUser(userSession);
 
         if (success) {
+            // Terminate the session process
+            processSessionManager.terminateSessionProcess(userSession);
+            
+            // Remove session from session manager
+            HttpSession httpSession = httpRequest.getSession(false);
+            if (httpSession != null) {
+                sessionManager.invalidateSession(httpSession);
+            }
+            
             return ResponseEntity.ok(com.example.banking.api.dto.ApiResponse.success("Account deleted successfully"));
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(com.example.banking.api.dto.ApiResponse.error("Invalid credentials"));
+                    .body(com.example.banking.api.dto.ApiResponse.error("Failed to delete account"));
         }
     }
 }

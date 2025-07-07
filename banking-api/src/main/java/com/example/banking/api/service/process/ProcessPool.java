@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.io.*;
 import java.util.concurrent.*;
@@ -41,7 +42,12 @@ public class ProcessPool {
     private long healthCheckIntervalMs;
     
     public ProcessPool() {
-        // Schedule health check task
+        // Health check task will be scheduled after Spring injects values
+    }
+    
+    @PostConstruct
+    public void initializeHealthCheck() {
+        // Schedule health check task after all values are injected
         healthCheckExecutor.scheduleAtFixedRate(
             this::performHealthCheck, 
             healthCheckIntervalMs, 
