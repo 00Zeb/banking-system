@@ -119,7 +119,7 @@ class BankingControllerTest {
 
         @Test
         @DisplayName("Should authenticate user successfully")
-        @Disabled
+        @Disabled("Needs interceptor configuration fix")
         void shouldAuthenticateUserSuccessfully() throws Exception {
             // Given
             LoginRequest request = new LoginRequest("testuser", "password");

@@ -5,6 +5,8 @@ import com.example.banking.api.dto.RegisterRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.DisplayName;
+import static org.junit.jupiter.api.Assertions.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,6 +23,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
+@DisplayName("Session Management Tests")
 public class SessionDebugTest {
 
     private MockMvc mockMvc;
@@ -43,7 +46,8 @@ public class SessionDebugTest {
     }
 
     @Test
-    public void testSessionDebug() throws Exception {
+    @DisplayName("Should handle session-based authentication correctly")
+    public void shouldHandleSessionAuthentication() throws Exception {
         String username = "debuguser";
         String password = "password123";
 
@@ -68,12 +72,22 @@ public class SessionDebugTest {
         mockMvc.perform(get("/api/v1/banking/balance"))
                 .andExpect(status().isUnauthorized());
 
-        // 4. Test with session but not properly configured (debug this)
-        MvcResult balanceResult = mockMvc.perform(get("/api/v1/banking/balance")
+        // 4. Test with session - should work properly
+        mockMvc.perform(get("/api/v1/banking/balance")
                 .session(session))
-                .andReturn();
-                
-        System.out.println("Balance response status: " + balanceResult.getResponse().getStatus());
-        System.out.println("Balance response content: " + balanceResult.getResponse().getContentAsString());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value(username))
+                .andExpect(jsonPath("$.balance").exists());
+        
+        // 5. Test logout functionality
+        mockMvc.perform(post("/api/v1/banking/logout")
+                .session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+        
+        // 6. Test that session is invalidated after logout
+        mockMvc.perform(get("/api/v1/banking/balance")
+                .session(session))
+                .andExpect(status().isUnauthorized());
     }
 }
