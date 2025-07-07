@@ -4,6 +4,9 @@ import com.example.banking.api.dto.LoginRequest;
 import com.example.banking.api.dto.RegisterRequest;
 import com.example.banking.api.dto.TransactionRequest;
 import com.example.banking.api.service.BankingService;
+import com.example.banking.api.service.SessionBankingService;
+import com.example.banking.api.service.session.SessionManager;
+import com.example.banking.api.service.process.ProcessSessionManager;
 import com.example.banking.api.model.BankingUser;
 import com.example.banking.api.model.BankingTransaction;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,6 +35,15 @@ class BankingControllerTest {
 
     @MockBean
     private BankingService bankingService;
+
+    @MockBean
+    private SessionBankingService sessionBankingService;
+
+    @MockBean
+    private SessionManager sessionManager;
+
+    @MockBean
+    private ProcessSessionManager processSessionManager;
 
     @Autowired
     private ObjectMapper objectMapper;

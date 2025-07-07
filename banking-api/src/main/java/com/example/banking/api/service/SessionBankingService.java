@@ -30,7 +30,7 @@ public class SessionBankingService {
      */
     public Double getBalance(UserSession userSession) {
         try {
-            BalanceOperation operation = new BalanceOperation(userSession.getUsername(), "session-authenticated");
+            SessionBalanceOperation operation = new SessionBalanceOperation(userSession.getUsername());
             return processSessionManager.executeForSession(userSession, operation);
         } catch (Exception e) {
             throw new RuntimeException("Failed to get balance for session", e);
@@ -45,7 +45,7 @@ public class SessionBankingService {
             return false;
         }
         try {
-            DepositOperation operation = new DepositOperation(userSession.getUsername(), "session-authenticated", amount);
+            SessionDepositOperation operation = new SessionDepositOperation(userSession.getUsername(), amount);
             return processSessionManager.executeForSession(userSession, operation);
         } catch (Exception e) {
             throw new RuntimeException("Failed to perform deposit for session", e);
@@ -60,7 +60,7 @@ public class SessionBankingService {
             return false;
         }
         try {
-            WithdrawalOperation operation = new WithdrawalOperation(userSession.getUsername(), "session-authenticated", amount);
+            SessionWithdrawalOperation operation = new SessionWithdrawalOperation(userSession.getUsername(), amount);
             return processSessionManager.executeForSession(userSession, operation);
         } catch (Exception e) {
             throw new RuntimeException("Failed to perform withdrawal for session", e);
@@ -72,7 +72,7 @@ public class SessionBankingService {
      */
     public List<BankingTransaction> getTransactions(UserSession userSession) {
         try {
-            TransactionHistoryOperation operation = new TransactionHistoryOperation(userSession.getUsername(), "session-authenticated");
+            SessionTransactionHistoryOperation operation = new SessionTransactionHistoryOperation(userSession.getUsername());
             return processSessionManager.executeForSession(userSession, operation);
         } catch (Exception e) {
             throw new RuntimeException("Failed to get transactions for session", e);

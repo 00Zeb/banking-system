@@ -72,9 +72,12 @@ class BankingApiIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("User registered successfully"));
 
-        // 2. Login with the new user
+        // 2. Login with the new user and create session
+        MockHttpSession session = new MockHttpSession();
+        
         LoginRequest loginRequest = new LoginRequest(username, password);
         MvcResult loginResult = mockMvc.perform(post("/api/v1/banking/login")
+                .session(session)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isOk())
@@ -82,8 +85,6 @@ class BankingApiIntegrationTest {
                 .andExpect(jsonPath("$.balance").value(0.0))
                 .andExpect(jsonPath("$.sessionId").exists())
                 .andReturn();
-        
-        MockHttpSession session = (MockHttpSession) loginResult.getRequest().getSession();
 
         // 3. Check initial balance
         mockMvc.perform(get("/api/v1/banking/balance")
