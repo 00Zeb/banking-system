@@ -7,6 +7,16 @@ spring:
   application:
     name: banking-api
 
+  # Session configuration
+  session:
+    store-type: memory
+    timeout: 1800s  # 30 minutes
+    cookie:
+      max-age: 1800s
+      http-only: true
+      secure: false  # Set to true in production with HTTPS
+      same-site: lax
+
   # Jackson configuration for JSON serialization
   jackson:
     default-property-inclusion: non_null
@@ -57,6 +67,10 @@ banking:
     jar-path: "../banking-application/target/banking-application-1.0-SNAPSHOT.jar"
     process-timeout: 30000  # 30 seconds timeout for process operations
     java-command: "java"
+  session:
+    max-concurrent-sessions: 100  # Maximum number of concurrent user sessions
+    process-idle-timeout: 300000  # 5 minutes - timeout for idle processes
+    cleanup-interval: 60000  # 1 minute - interval for cleanup tasks
 
 # Logging configuration
 logging:

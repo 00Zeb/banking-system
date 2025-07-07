@@ -39,7 +39,8 @@ public class ProcessExecutor {
     }
 
     /**
-     * Executes a process operation with the banking application.
+     * Executes a process operation with the banking application using a new process.
+     * This method is for backward compatibility and one-off operations.
      *
      * @param operation The operation to execute
      * @return The result of the operation
@@ -71,6 +72,29 @@ public class ProcessExecutor {
             if (process != null && process.isAlive()) {
                 process.destroyForcibly();
             }
+        }
+    }
+
+    /**
+     * Executes a process operation with a managed process (for session-based operations).
+     *
+     * @param operation The operation to execute
+     * @param managedProcess The managed process to use
+     * @return The result of the operation
+     * @throws ProcessExecutionException if the operation fails
+     */
+    public <T> T executeWithManagedProcess(ProcessOperation<T> operation, ManagedProcess managedProcess) {
+        if (!managedProcess.isHealthy()) {
+            throw new ProcessExecutionException("Managed process is not healthy");
+        }
+        
+        try {
+            ProcessCommunication communication = managedProcess.createCommunication(this);
+            return operation.execute(communication);
+            
+        } catch (Exception e) {
+            logger.error("Error executing operation with managed process {}", managedProcess.getProcessId(), e);
+            throw new ProcessExecutionException("Failed to execute operation with managed process", e);
         }
     }
 

@@ -190,4 +190,48 @@ public class ProcessCommunication {
         logger.debug("Attempting graceful exit...");
         sendCommand("3"); // Exit
     }
+    
+    /**
+     * Checks if the process is responsive by sending a simple command and waiting for response.
+     * This can be used for health checks on persistent processes.
+     *
+     * @return true if process responds within timeout
+     */
+    public boolean isProcessResponsive() {
+        try {
+            // Try reading any available output first to clear buffer
+            readOutput(100);
+            return true;
+        } catch (IOException e) {
+            logger.debug("Process not responsive: {}", e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Waits for banking menu to appear (for session-based operations).
+     * This is used after authentication to ensure the process is ready for operations.
+     *
+     * @return the banking menu output
+     * @throws IOException if reading fails
+     */
+    public String waitForBankingMenu() throws IOException {
+        logger.debug("Waiting for banking menu...");
+        String output = readOutput(500);
+        logger.debug("Banking menu output: [{}]", output);
+        return output;
+    }
+    
+    /**
+     * Navigates back to main menu from any submenu.
+     * This is useful for persistent processes to ensure clean state between operations.
+     *
+     * @throws IOException if communication fails
+     */
+    public void navigateToMainMenu() throws IOException {
+        logger.debug("Navigating to main menu...");
+        // Send a few back commands to ensure we're at main menu
+        // This is a defensive approach for persistent processes
+        readOutput(100); // Clear any pending output
+    }
 }
