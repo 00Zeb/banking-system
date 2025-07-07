@@ -26,9 +26,9 @@ public class SessionWithdrawalOperation implements ProcessOperation<Boolean> {
         logger.info("=== SESSION WITHDRAWAL OPERATION START - Amount: {} ===", amount);
         
         // For session-based operations, we assume the process is already authenticated
-        // Send the withdrawal command directly
-        logger.info("Sending withdrawal command (4)...");
-        communication.sendCommand("4"); // Choose withdrawal option from banking menu
+        // and in the banking menu state. Send the withdrawal command directly
+        logger.info("Sending withdrawal command (2)...");
+        communication.sendCommand("2"); // Choose withdrawal option from banking menu
         
         // Wait for amount prompt
         logger.info("Waiting for amount prompt...");

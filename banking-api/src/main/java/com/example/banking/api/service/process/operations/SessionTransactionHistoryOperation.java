@@ -22,9 +22,9 @@ public class SessionTransactionHistoryOperation implements ProcessOperation<List
     
     private final String username;
     
-    // Pattern for parsing transaction entries
+    // Pattern for parsing transaction entries - matches format like "[timestamp] Deposit: $100,00"
     private static final Pattern TRANSACTION_PATTERN = Pattern.compile(
-        "(Deposit|Withdrawal)\\s+of\\s+\\$([0-9]+\\.?[0-9]*)"  
+        "\\]\\s+(Deposit|Withdrawal):\\s+\\$([0-9]+)[,.]([0-9]*)"
     );
     
     public SessionTransactionHistoryOperation(String username) {
@@ -37,8 +37,8 @@ public class SessionTransactionHistoryOperation implements ProcessOperation<List
         
         // For session-based operations, we assume the process is already authenticated
         // Send the transaction history command directly
-        logger.info("Sending transaction history command (5)...");
-        communication.sendCommand("5"); // Choose transaction history option from banking menu
+        logger.info("Sending transaction history command (3)...");
+        communication.sendCommand("3"); // Choose transaction list option from banking menu
         
         // Wait for transaction history output
         logger.info("Waiting for transaction history output...");
@@ -64,8 +64,13 @@ public class SessionTransactionHistoryOperation implements ProcessOperation<List
         while (matcher.find()) {
             try {
                 String type = matcher.group(1);
-                double amount = Double.parseDouble(matcher.group(2));
-                
+                String integerPart = matcher.group(2);
+                String decimalPart = matcher.group(3);
+
+                // Construct the amount string (handle both comma and dot as decimal separator)
+                String amountStr = integerPart + "." + (decimalPart.isEmpty() ? "0" : decimalPart);
+                double amount = Double.parseDouble(amountStr);
+
                 BankingTransaction transaction = new BankingTransaction(
                     type,
                     amount,
@@ -73,7 +78,7 @@ public class SessionTransactionHistoryOperation implements ProcessOperation<List
                 );
                 transactions.add(transaction);
             } catch (NumberFormatException e) {
-                logger.warn("Failed to parse transaction amount from: {}", matcher.group(2), e);
+                logger.warn("Failed to parse transaction amount from: {} and {}", matcher.group(2), matcher.group(3), e);
             }
         }
         

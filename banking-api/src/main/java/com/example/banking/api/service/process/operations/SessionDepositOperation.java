@@ -26,9 +26,9 @@ public class SessionDepositOperation implements ProcessOperation<Boolean> {
         logger.info("=== SESSION DEPOSIT OPERATION START - Amount: {} ===", amount);
         
         // For session-based operations, we assume the process is already authenticated
-        // Send the deposit command directly
-        logger.info("Sending deposit command (3)...");
-        communication.sendCommand("3"); // Choose deposit option from banking menu
+        // and in the banking menu state. Send the deposit command directly
+        logger.info("Sending deposit command (1)...");
+        communication.sendCommand("1"); // Choose deposit option from banking menu
         
         // Wait for amount prompt
         logger.info("Waiting for amount prompt...");

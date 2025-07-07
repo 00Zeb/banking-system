@@ -18,8 +18,8 @@ public class SessionBalanceOperation implements ProcessOperation<Double> {
     
     private final String username;
     
-    // Pattern for parsing balance
-    private static final Pattern BALANCE_PATTERN = Pattern.compile("\\$([0-9]+\\.?[0-9]*)");
+    // Pattern for parsing balance - specifically looks for "Current Balance: $amount"
+    private static final Pattern BALANCE_PATTERN = Pattern.compile("Current Balance:\\s*\\$([0-9]+\\.?[0-9]*)", Pattern.CASE_INSENSITIVE);
     
     public SessionBalanceOperation(String username) {
         this.username = username;
@@ -30,17 +30,17 @@ public class SessionBalanceOperation implements ProcessOperation<Double> {
         logger.info("=== SESSION BALANCE OPERATION START ===");
         
         // For session-based operations, we assume the process is already authenticated
-        // Just send the balance check command directly
-        logger.info("Sending balance check command (2)...");
-        communication.sendCommand("2"); // Choose balance option from banking menu
+        // and in the banking menu state. Use transaction list to get balance
+        logger.info("Sending transaction list command (3)...");
+        communication.sendCommand("3"); // Choose transaction list option from banking menu
         
-        // Wait for balance output
-        logger.info("Waiting for balance output...");
-        String balanceOutput = communication.readOutput(500);
-        logger.info("Balance output: [{}]", balanceOutput);
+        // Wait for transaction list output (which includes current balance)
+        logger.info("Waiting for transaction list output...");
+        String transactionOutput = communication.readOutput(500);
+        logger.info("Transaction list output: [{}]", transactionOutput);
         
-        // Parse balance from output
-        Double balance = parseBalance(balanceOutput);
+        // Parse balance from transaction list output
+        Double balance = parseBalance(transactionOutput);
         logger.info("Parsed balance: {}", balance);
         
         logger.info("=== SESSION BALANCE OPERATION END - BALANCE: {} ===", balance);
@@ -49,9 +49,15 @@ public class SessionBalanceOperation implements ProcessOperation<Double> {
     
     /**
      * Parse balance from process output.
+     * Looks for patterns like "Current Balance: $100.00" or "Current balance: $50.25"
      */
     private Double parseBalance(String output) {
-        // Look for patterns like "Current balance: $100.00" or "Balance: $50.25"
+        if (output == null || output.trim().isEmpty()) {
+            logger.warn("Empty output provided for balance parsing");
+            return 0.0;
+        }
+
+        // Look for patterns like "Current Balance: $100.00" or "Current balance: $50.25"
         Matcher matcher = BALANCE_PATTERN.matcher(output);
         if (matcher.find()) {
             try {
@@ -60,7 +66,7 @@ public class SessionBalanceOperation implements ProcessOperation<Double> {
                 logger.warn("Failed to parse balance from: {}", matcher.group(1), e);
             }
         }
-        
+
         // Fallback: look for any number that might be a balance
         logger.warn("Could not parse balance from output: {}", output);
         return 0.0; // Default to 0 if we can't parse

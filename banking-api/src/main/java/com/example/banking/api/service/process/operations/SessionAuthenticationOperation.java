@@ -7,23 +7,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Process operation for user authentication.
+ * Session-based authentication operation that authenticates a user and leaves
+ * the process in the banking menu state for subsequent session operations.
+ * Unlike UserAuthenticationOperation, this does NOT perform logout after authentication.
  */
-public class UserAuthenticationOperation implements ProcessOperation<BankingUser> {
+public class SessionAuthenticationOperation implements ProcessOperation<BankingUser> {
     
-    private static final Logger logger = LoggerFactory.getLogger(UserAuthenticationOperation.class);
+    private static final Logger logger = LoggerFactory.getLogger(SessionAuthenticationOperation.class);
     
     private final String username;
     private final String password;
     
-    public UserAuthenticationOperation(String username, String password) {
+    public SessionAuthenticationOperation(String username, String password) {
         this.username = username;
         this.password = password;
     }
     
     @Override
     public BankingUser execute(ProcessCommunication communication) throws Exception {
-        logger.info("=== USER AUTHENTICATION OPERATION START ===");
+        logger.info("=== SESSION AUTHENTICATION OPERATION START ===");
         
         // Wait for initial menu
         String initialOutput = communication.waitForInitialMenu();
@@ -40,15 +42,15 @@ public class UserAuthenticationOperation implements ProcessOperation<BankingUser
         logger.info("Authentication successful: {}", isSuccessful);
         
         if (isSuccessful) {
-            // For session-based authentication, we want to stay logged in
-            // so the process remains in the banking menu state
-            logger.info("=== USER AUTHENTICATION OPERATION END - SUCCESS ===");
+            // DO NOT perform logout - leave the process in the banking menu state
+            // This allows subsequent session operations to work with the authenticated process
+            logger.info("=== SESSION AUTHENTICATION OPERATION END - SUCCESS (STAYING LOGGED IN) ===");
             return new BankingUser(username, 0.0);
         } else {
             // Handle failed login
             communication.performGracefulExit();
             
-            logger.info("=== USER AUTHENTICATION OPERATION END - FAILURE ===");
+            logger.info("=== SESSION AUTHENTICATION OPERATION END - FAILURE ===");
             return null;
         }
     }

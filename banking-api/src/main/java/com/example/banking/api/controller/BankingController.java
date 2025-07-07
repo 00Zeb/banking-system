@@ -85,29 +85,31 @@ public class BankingController {
         @ApiResponse(responseCode = "401", description = "Invalid credentials")
     })
     public ResponseEntity<SessionResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
-        // Authenticate user with banking service
-        BankingUser user = bankingService.authenticateUser(request.getUsername(), request.getPassword());
+        // Create HTTP session first
+        HttpSession httpSession = httpRequest.getSession(true);
+
+        // Create user session
+        UserSession userSession = sessionManager.createSession(request.getUsername(), httpSession);
+
+        // Authenticate user and create session process
+        BankingUser user = sessionBankingService.authenticateAndStartSession(userSession, request.getPassword());
 
         if (user != null) {
-            // Create HTTP session
-            HttpSession httpSession = httpRequest.getSession(true);
-            
-            // Create user session
-            UserSession userSession = sessionManager.createSession(user.getUsername(), httpSession);
-            
             // Calculate session expiration
             LocalDateTime expiresAt = userSession.getCreatedAt().plusSeconds(1800); // 30 minutes
-            
+
             SessionResponse response = new SessionResponse(
-                user.getUsername(), 
-                user.getBalance(), 
+                user.getUsername(),
+                user.getBalance(),
                 userSession.getSessionId(),
                 userSession.getCreatedAt(),
                 expiresAt
             );
-            
+
             return ResponseEntity.ok(response);
         } else {
+            // Authentication failed, clean up the session
+            sessionManager.invalidateSession(httpSession);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
@@ -135,12 +137,9 @@ public class BankingController {
         
         // Terminate the session process
         processSessionManager.terminateSessionProcess(userSession);
-        
-        // Remove session from session manager
+
+        // Remove session from session manager (this also invalidates the HTTP session)
         sessionManager.invalidateSession(httpSession);
-        
-        // Invalidate HTTP session
-        httpSession.invalidate();
         
         return ResponseEntity.ok(com.example.banking.api.dto.ApiResponse.success("Session ended successfully"));
     }

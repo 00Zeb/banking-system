@@ -89,11 +89,12 @@ public class SessionBankingService {
 
     /**
      * Authenticate and establish session for a user.
-     * This operation still uses the old authentication method since it's for login.
+     * This creates an authenticated process that stays in the banking menu state
+     * for subsequent session operations to use.
      */
     public BankingUser authenticateAndStartSession(UserSession userSession, String password) {
         try {
-            UserAuthenticationOperation operation = new UserAuthenticationOperation(userSession.getUsername(), password);
+            SessionAuthenticationOperation operation = new SessionAuthenticationOperation(userSession.getUsername(), password);
             return processSessionManager.authenticateForSession(userSession, operation);
         } catch (Exception e) {
             throw new RuntimeException("Failed to authenticate and start session", e);
