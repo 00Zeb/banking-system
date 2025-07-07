@@ -51,3 +51,4 @@ banking-application/target/
 banking-api/target/
 *.dat
 users.dat
+*.ser
