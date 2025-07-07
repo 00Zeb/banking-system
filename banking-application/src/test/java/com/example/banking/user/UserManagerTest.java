@@ -26,12 +26,6 @@ class UserManagerTest {
 
     private UserManager userManager;
 
-    @BeforeEach
-    void setUp() {
-        // Reset the mock before each test
-        reset(mockRepository);
-    }
-
     @Nested
     @DisplayName("Constructor Tests")
     class ConstructorTests {

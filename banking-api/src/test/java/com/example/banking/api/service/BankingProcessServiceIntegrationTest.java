@@ -2,6 +2,7 @@ package com.example.banking.api.service;
 
 import com.example.banking.api.config.BankingApplicationProperties;
 import com.example.banking.api.model.BankingUser;
+import com.example.banking.api.service.process.ProcessExecutor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,7 +44,8 @@ class BankingProcessServiceIntegrationTest {
 
         System.out.println("Using JAR: " + jarLocatorService.getJarInfo());
 
-        processService = new BankingProcessService(properties, jarLocatorService);
+        ProcessExecutor processExecutor = new ProcessExecutor(properties, jarLocatorService);
+        processService = new BankingProcessService(processExecutor);
         
         // Clean up any existing data files
         cleanupDataFiles();
