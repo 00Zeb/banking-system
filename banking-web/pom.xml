@@ -11,7 +11,7 @@
     </parent>
 
     <artifactId>banking-web</artifactId>
-    <packaging>war</packaging>
+    <packaging>jar</packaging>
     <name>Banking Web Application</name>
     <description>Simple JavaScript web frontend for the Banking REST API</description>
 
@@ -55,6 +55,16 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.example.banking.web.WebApplication</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <!-- Jetty Plugin for easy development -->
@@ -64,7 +74,7 @@
                 <version>11.0.18</version>
                 <configuration>
                     <httpConnector>
-                        <port>3000</port>
+                        <port>${PORT}</port>
                     </httpConnector>
                     <webApp>
                         <contextPath>/</contextPath>

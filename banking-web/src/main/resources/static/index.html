@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banking System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏦 Banking System</h1>
+            <p>Simple web interface for banking operations</p>
+        </header>
+
+        <!-- Login Section -->
+        <div id="loginSection" class="section">
+            <h2>Login / Register</h2>
+            
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" placeholder="Enter username">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" placeholder="Enter password">
+            </div>
+            
+            <div class="button-group">
+                <button onclick="login()" class="btn btn-primary">Login</button>
+                <button onclick="register()" class="btn btn-secondary">Register</button>
+            </div>
+        </div>
+
+        <!-- Banking Operations Section -->
+        <div id="bankingSection" class="section hidden">
+            <h2>Welcome, <span id="currentUser"></span>!</h2>
+            <p>Current Balance: $<span id="currentBalance">0.00</span></p>
+            
+            <div class="operations">
+                <div class="operation-card">
+                    <h3>💰 Deposit</h3>
+                    <div class="form-group">
+                        <label for="depositAmount">Amount:</label>
+                        <input type="number" id="depositAmount" placeholder="0.00" step="0.01" min="0">
+                    </div>
+                    <button onclick="deposit()" class="btn btn-success">Deposit</button>
+                </div>
+
+                <div class="operation-card">
+                    <h3>💸 Withdraw</h3>
+                    <div class="form-group">
+                        <label for="withdrawAmount">Amount:</label>
+                        <input type="number" id="withdrawAmount" placeholder="0.00" step="0.01" min="0">
+                    </div>
+                    <button onclick="withdraw()" class="btn btn-warning">Withdraw</button>
+                </div>
+
+                <div class="operation-card">
+                    <h3>📊 Account Info</h3>
+                    <button onclick="getBalance()" class="btn btn-info">Refresh Balance</button>
+                    <button onclick="getTransactions()" class="btn btn-info">View Transactions</button>
+                </div>
+            </div>
+
+            <div class="logout-section">
+                <button onclick="logout()" class="btn btn-secondary">Logout</button>
+            </div>
+        </div>
+
+        <!-- Transactions Section -->
+        <div id="transactionsSection" class="section hidden">
+            <h2>📋 Transaction History</h2>
+            <div id="transactionsList"></div>
+            <button onclick="hideTransactions()" class="btn btn-secondary">Close</button>
+        </div>
+
+        <!-- Messages Section -->
+        <div id="messages" class="messages"></div>
+
+        <!-- API Status -->
+        <div class="api-status">
+            <p>API Status: <span id="apiStatus">Checking...</span></p>
+            <p>API URL: <span id="apiUrl">http://localhost:8080</span></p>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/banking.js"></script>
+</body>
+</html>
