@@ -1,0 +1,50 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  session:
+    cookie:
+      secure: true
+      same-site: strict
+      
+  web:
+    cors:
+      allowed-origins:
+        - "https://*.railway.app"
+        - "https://your-web-service.railway.app"
+      allowed-methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      allowed-headers: "*"
+      allow-credentials: true
+      max-age: 3600
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+banking:
+  application:
+    jar-path: "./banking-application/target/banking-application-1.0-SNAPSHOT.jar"
+    process-timeout: 45000
+    java-command: "java"
+  session:
+    max-concurrent-sessions: 50
+    process-idle-timeout: 180000
+    cleanup-interval: 30000
+
+logging:
+  level:
+    com.example.banking.api: INFO
+    org.springframework.web: INFO
+    root: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

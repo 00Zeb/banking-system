@@ -1,0 +1,36 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "java -jar banking-api/target/banking-api-1.0-SNAPSHOT.jar"
+healthcheckPath = "/actuator/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+
+[environments.staging]
+startCommand = "java -jar banking-api/target/banking-api-1.0-SNAPSHOT.jar --spring.profiles.active=staging"
+
+[environments.production]
+startCommand = "java -jar banking-api/target/banking-api-1.0-SNAPSHOT.jar --spring.profiles.active=production"
+
+[[services]]
+name = "banking-api"
+source = "."
+buildCommand = "./mvnw clean install -f banking-api/pom.xml"
+startCommand = "java -jar banking-api/target/banking-api-1.0-SNAPSHOT.jar"
+
+[services.healthcheck]
+path = "/actuator/health"
+timeout = 30
+interval = 10
+
+[[services]]
+name = "banking-web"
+source = "."
+buildCommand = "./mvnw clean install -f banking-web/pom.xml"
+startCommand = "java -jar banking-web/target/banking-web-1.0-SNAPSHOT.war"
+
+[services.healthcheck]
+path = "/"
+timeout = 30
+interval = 10

@@ -1,0 +1,82 @@
+# Banking System Monitoring Configuration
+# This file defines monitoring endpoints and alerts
+
+monitoring:
+  environments:
+    local:
+      api_url: "http://localhost:8080"
+      web_url: "http://localhost:3000"
+      health_check_interval: 30  # seconds
+      
+    staging:
+      api_url: "https://your-staging-api.railway.app"
+      web_url: "https://your-staging-web.railway.app"
+      health_check_interval: 60  # seconds
+      
+    production:
+      api_url: "https://your-production-api.railway.app"
+      web_url: "https://your-production-web.railway.app"
+      health_check_interval: 30  # seconds
+
+  endpoints:
+    health:
+      path: "/actuator/health"
+      expected_status: "UP"
+      timeout: 10
+      
+    info:
+      path: "/actuator/info"
+      timeout: 10
+      
+    metrics:
+      path: "/actuator/metrics"
+      timeout: 10
+      
+    prometheus:
+      path: "/actuator/prometheus"
+      timeout: 10
+      enabled_environments: ["staging", "production"]
+
+  alerts:
+    health_check_failures:
+      threshold: 3  # consecutive failures
+      notification_channels:
+        - email
+        - slack
+        - github_issues
+        
+    response_time:
+      threshold: 2000  # milliseconds
+      notification_channels:
+        - slack
+        
+    error_rate:
+      threshold: 5  # percentage
+      notification_channels:
+        - email
+        - slack
+
+  metrics_to_monitor:
+    - "jvm.memory.used"
+    - "jvm.memory.max"
+    - "system.cpu.usage"
+    - "http.server.requests"
+    - "process.uptime"
+    - "process.files.open"
+
+  railway_integration:
+    # Railway.app provides built-in monitoring
+    # Access logs via Railway dashboard
+    # Metrics available through Railway API
+    logs:
+      retention_days: 7
+      log_level: "INFO"
+      
+    resources:
+      cpu_limit: "1000m"  # 1 CPU core
+      memory_limit: "512Mi"  # 512 MB
+      
+    scaling:
+      min_instances: 1
+      max_instances: 3
+      cpu_threshold: 70  # percentage
