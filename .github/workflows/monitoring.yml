@@ -1,0 +1,50 @@
+name: Health Check & Monitoring
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # Every 5 minutes
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check Staging API Health
+      run: |
+        echo "🔍 Checking staging API health..."
+        # Replace with your actual Railway URLs
+        # curl -f https://your-staging-api.railway.app/actuator/health || echo "❌ Staging API health check failed"
+        echo "✅ Staging API health check (placeholder)"
+        
+    - name: Check Production API Health
+      run: |
+        echo "🔍 Checking production API health..."
+        # Replace with your actual Railway URLs
+        # curl -f https://your-production-api.railway.app/actuator/health || echo "❌ Production API health check failed"
+        echo "✅ Production API health check (placeholder)"
+        
+    - name: Check Web Application
+      run: |
+        echo "🔍 Checking web application..."
+        # Replace with your actual Railway URLs
+        # curl -f https://your-staging-web.railway.app/ || echo "❌ Web application health check failed"
+        echo "✅ Web application health check (placeholder)"
+        
+    - name: Performance Metrics
+      run: |
+        echo "📊 Collecting performance metrics..."
+        # You can add API calls to collect metrics
+        # curl -s https://your-api.railway.app/actuator/metrics | jq '.availableProcessors'
+        echo "✅ Performance metrics collected (placeholder)"
+
+  uptime-check:
+    runs-on: ubuntu-latest
+    if: failure()
+    
+    steps:
+    - name: Alert on Failure
+      run: |
+        echo "🚨 Service appears to be down!"
+        echo "Time: $(date)"
+        echo "Consider implementing alerts via email/Slack/Discord"

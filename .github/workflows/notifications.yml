@@ -1,0 +1,51 @@
+name: Deployment Notifications
+
+on:
+  workflow_run:
+    workflows: ["CI Pipeline", "Deploy to Railway"]
+    types:
+      - completed
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check workflow conclusion
+      run: |
+        echo "Workflow: ${{ github.event.workflow_run.name }}"
+        echo "Conclusion: ${{ github.event.workflow_run.conclusion }}"
+        echo "Branch: ${{ github.event.workflow_run.head_branch }}"
+        echo "Commit: ${{ github.event.workflow_run.head_sha }}"
+        
+    - name: Success Notification
+      if: ${{ github.event.workflow_run.conclusion == 'success' }}
+      run: |
+        echo "✅ Deployment successful!"
+        echo "🚀 Banking System deployed successfully"
+        echo "🔗 Commit: ${{ github.event.workflow_run.head_sha }}"
+        echo "🌿 Branch: ${{ github.event.workflow_run.head_branch }}"
+        echo ""
+        echo "🌐 Services:"
+        echo "  - API: Check Railway dashboard for URL"
+        echo "  - Web: Check Railway dashboard for URL"
+        echo "  - Health: /actuator/health"
+        echo ""
+        echo "💡 You can add Slack, Discord, or email notifications here"
+        
+    - name: Failure Notification
+      if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+      run: |
+        echo "❌ Deployment failed!"
+        echo "🔴 Banking System deployment failed"
+        echo "🔗 Commit: ${{ github.event.workflow_run.head_sha }}"
+        echo "🌿 Branch: ${{ github.event.workflow_run.head_branch }}"
+        echo ""
+        echo "🔍 Check the workflow logs for details"
+        echo "💡 You can add Slack, Discord, or email notifications here"
+        
+    - name: Status Badge Update
+      run: |
+        echo "🏷️  Status badge information:"
+        echo "Badge URL: https://github.com/${{ github.repository }}/actions/workflows/ci.yml/badge.svg"
+        echo "Add this to your README.md for build status visibility"

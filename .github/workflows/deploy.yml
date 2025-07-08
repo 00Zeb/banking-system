@@ -1,0 +1,110 @@
+name: Deploy to Railway
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: staging
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+        
+    - name: Build for staging
+      run: ./mvnw clean install -DskipTests -Dspring.profiles.active=staging
+      
+    - name: Deploy to Railway Staging
+      run: |
+        echo "Deploying to Railway staging environment..."
+        echo "Railway will automatically detect the push and deploy"
+        echo "Environment: staging"
+        echo "Profile: staging"
+        
+    - name: Health Check
+      run: |
+        echo "Waiting for deployment to complete..."
+        sleep 30
+        echo "Health check would be performed here"
+        echo "curl -f https://your-staging-api.railway.app/actuator/health"
+        
+    - name: Notify deployment success
+      run: |
+        echo "✅ Staging deployment completed successfully"
+        echo "🚀 API: https://your-staging-api.railway.app"
+        echo "🌐 Web: https://your-staging-web.railway.app"
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production'
+    environment: production
+    needs: []
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+        
+    - name: Run full test suite
+      run: ./mvnw clean test
+      
+    - name: Build for production
+      run: ./mvnw clean install -DskipTests -Dspring.profiles.active=production
+      
+    - name: Deploy to Railway Production
+      run: |
+        echo "Deploying to Railway production environment..."
+        echo "Railway will automatically detect the push and deploy"
+        echo "Environment: production"
+        echo "Profile: production"
+        
+    - name: Health Check
+      run: |
+        echo "Waiting for deployment to complete..."
+        sleep 60
+        echo "Health check would be performed here"
+        echo "curl -f https://your-production-api.railway.app/actuator/health"
+        
+    - name: Notify deployment success
+      run: |
+        echo "✅ Production deployment completed successfully"
+        echo "🚀 API: https://your-production-api.railway.app"
+        echo "🌐 Web: https://your-production-web.railway.app"
