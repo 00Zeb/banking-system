@@ -2,8 +2,8 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "cd banking-web && ../mvnw jetty:run -Djetty.http.port=$PORT"
-healthcheckPath = "/"
+startCommand = "java -jar banking-api/target/banking-api-1.0-SNAPSHOT.jar --server.port=$PORT"
+healthcheckPath = "/actuator/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
 

@@ -1,1 +1,1 @@
-web: java -jar banking-api/target/banking-api-1.0-SNAPSHOT.jar --server.port=$PORT
+api: java -jar banking-api/target/banking-api-1.0-SNAPSHOT.jar --server.port=$PORT
