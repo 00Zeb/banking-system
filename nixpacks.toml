@@ -1,0 +1,12 @@
+[phases.build]
+cmds = [
+  "chmod +x mvnw",
+  "./mvnw clean install -DskipTests"
+]
+
+[phases.start]
+cmd = "java -jar banking-api/target/banking-api-1.0-SNAPSHOT.jar --server.port=$PORT"
+
+[variables]
+JAVA_VERSION = "17"
+MAVEN_VERSION = "3.9.6"

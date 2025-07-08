@@ -32,7 +32,7 @@ This document describes the CI/CD pipeline implemented for the Banking System us
 - **Triggers**: Push to main/develop, Pull Requests
 - **Steps**:
   1. Checkout code
-  2. Setup Java 21
+  2. Setup Java 17
   3. Cache Maven dependencies
   4. Run all tests (25 test cases)
   5. Generate test reports
@@ -110,7 +110,7 @@ Checks:
 ### Common Issues
 
 1. **Build Failures**
-   - Check Java version (requires Java 21)
+   - Check Java version (requires Java 17)
    - Verify Maven dependencies
    - Run `./mvnw clean install` locally
 
