@@ -22,6 +22,12 @@
     </properties>
 
     <dependencies>
+        <!-- Spring Boot Starter Web for standalone deployment -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        
         <!-- Minimal servlet API for packaging as WAR -->
         <dependency>
             <groupId>jakarta.servlet</groupId>
@@ -43,6 +49,12 @@
                     <webXml>false</webXml>
                     <failOnMissingWebXml>false</failOnMissingWebXml>
                 </configuration>
+            </plugin>
+
+            <!-- Spring Boot Plugin for executable JAR -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
 
             <!-- Jetty Plugin for easy development -->

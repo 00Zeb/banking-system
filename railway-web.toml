@@ -1,0 +1,12 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "cd banking-web && ../mvnw jetty:run -Djetty.http.port=$PORT"
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+
+[variables]
+JAVA_VERSION = "17"
+MAVEN_VERSION = "3.9.6"

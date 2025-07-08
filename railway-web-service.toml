@@ -1,0 +1,15 @@
+# Railway configuration for banking-web service
+# Use this if Railway allows per-service configuration files
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "cd banking-web && java -jar target/banking-web-1.0-SNAPSHOT.war --server.port=$PORT"
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+
+[variables]
+JAVA_VERSION = "17"
+MAVEN_VERSION = "3.9.6"

@@ -1,0 +1,24 @@
+server:
+  port: ${PORT:3000}
+
+spring:
+  application:
+    name: banking-web
+  web:
+    resources:
+      static-locations:
+        - classpath:/static/
+        - classpath:/META-INF/resources/
+        - classpath:/resources/
+        - classpath:/public/
+        - file:src/main/webapp/
+
+# Banking API configuration
+banking:
+  api:
+    base-url: ${BANKING_API_URL:http://localhost:8080/api/v1/banking}
+
+logging:
+  level:
+    org.springframework.web: INFO
+    org.springframework.boot.web: INFO
