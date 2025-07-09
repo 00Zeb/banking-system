@@ -21,3 +21,4 @@ ENV BANKING_API_URL=http://banking-api:8080
 
 # Run the banking-web using Jetty
 CMD ["./mvnw", "jetty:run", "-pl", "banking-web", "-Djetty.port=3000", "-Djetty.host=0.0.0.0"]
+https://banking-system-production-6a73.up.railway.app/
